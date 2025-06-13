@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuzzy Emotion Mapping System (FEMS)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior: none;
+        }
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            touch-action: none;
+            border-radius: 0.5rem;
+        }
+        #femsCanvas {
+            cursor: grab;
+            z-index: 10;
+        }
+        #femsCanvas:focus {
+            outline: none;
+        }
+        #femsCanvas.grabbing {
+            cursor: grabbing;
+        }
+        .control-panel {
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .control-panel-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-bottom: 1rem;
+        }
+        .control-panel-content::-webkit-scrollbar { width: 8px; }
+        .control-panel-content::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .control-panel-content::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+        .control-panel-content::-webkit-scrollbar-thumb:hover { background: #555; }
+        .color-palette-button { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; }
+        .color-palette-button.selected { border-color: #000; box-shadow: 0 0 0 2px white, 0 0 0 4px #000; }
+        .symbol-button { font-size: 1.25rem; padding: 0.25rem; border-radius: 0.25rem; cursor: pointer; transition: background-color 0.2s; }
+        .symbol-button.selected { background-color: #cbd5e1; }
+        .tooltip { position: relative; display: inline-block; }
+        .tooltip .tooltiptext { visibility: hidden; width: 120px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 10; bottom: 125%; left: 50%; margin-left: -60px; opacity: 0; transition: opacity 0.3s; }
+        .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .modal-content textarea#narrativeModalTextarea { width: 100%; min-height: 200px; border: 1px solid #cbd5e1; border-radius: 0.375rem; padding: 0.5rem; font-family: monospace; font-size: 0.875rem; }
+        .help-modal-content { max-height: 60vh; overflow-y: auto; text-align: left; }
+        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close-button:hover, .close-button:focus { color: black; text-decoration: none; cursor: pointer; }
+        input[type="file"] { border: 1px solid #cbd5e1; padding: 0.5rem; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); }
+        input[type="file"]::file-selector-button { margin-right: 0.5rem; border: none; background: #6366f1; padding: 0.5rem 0.75rem; border-radius: 0.375rem; color: white; cursor: pointer; transition: background-color .15s ease-in-out; }
+        input[type="file"]::file-selector-button:hover { background: #4f46e5; }
+        .label-cbx { user-select: none; cursor: pointer; margin-bottom: 0; display: flex; align-items: center; }
+        .label-cbx input:checked + .checkbox { border-color: #6366f1; }
+        .label-cbx input:checked + .checkbox svg path { fill: #6366f1; }
+        .label-cbx .checkbox { position: relative; top: 2px; float: left; margin-right: 8px; width: 20px; height: 20px; border: 2px solid #d1d5db; border-radius: 3px; }
+        .label-cbx .checkbox svg { position: absolute; top: -2px; left: -2px; }
+        .label-cbx .checkbox svg path { fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 71px; stroke-dashoffset: 71px; transition: all .3s ease; }
+        .label-cbx > span { pointer-events: none; line-height: 1.2; }
+        .control-panel-footer { padding: 0.75rem 1rem; border-top: 1px solid #e5e7eb; text-align: center; font-size: 0.75rem; color: #6b7280; flex-shrink: 0; }
+        .vocabulary-term {
+            background-color: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            padding: 0.25rem 0.6rem;
+            border-radius: 0.375rem;
+            font-size: 0.8rem;
+            color: #334155;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+            text-align: left;
+        }
+        .vocabulary-term:hover {
+            background-color: #e0e7ff;
+            border-color: #c7d2fe;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex flex-col md:flex-row h-screen overflow-hidden">
+
+    <div class="control-panel h-[40vh] md:h-auto w-full md:w-80 lg:w-96 bg-white shadow-lg order-2 md:order-1">
+        <div class="control-panel-content p-4 space-y-4 overflow-x-hidden">
+            
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-slate-700">Fuzzy Emotion Mapping System</h1>
+                <p class="text-xs text-slate-500">Aspects: <span id="aspectCountDisplay">0</span></p>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 space-y-3">
+                <h2 class="text-lg font-semibold text-slate-600">View Options</h2>
+                <div class="flex space-x-2">
+                    <button id="zoomOutButton" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-1 px-3 rounded-md text-lg shadow">-</button>
+                    <button id="zoomInButton" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-1 px-3 rounded-md text-lg shadow">+</button>
+                </div>
+                 <button id="centerOnSelfButton" class="w-full bg-gray-400 hover:bg-gray-500 text-white font-semibold py-1 px-3 rounded-md text-sm shadow mt-2">
+                    Center on SELF
+                </button>
+                <button id="resetViewButton" class="w-full bg-gray-400 hover:bg-gray-500 text-white font-semibold py-1 px-3 rounded-md text-sm shadow mt-1">
+                    Reset Full View
+                </button>
+                <div class="mt-2">
+                    <label class="label-cbx text-sm font-medium text-slate-700">
+                        <input type="checkbox" id="toggleRingsCheckbox" class="invisible">
+                        <div class="checkbox">
+                            <svg width="20px" height="20px" viewBox="0 0 20 20">
+                                <path d="M3,1 L17,1 L17,1 C18.1045695,1 19,1.8954305 19,3 L19,17 L19,17 C19,18.1045695 18.1045695,19 17,19 L3,19 L3,19 C1.8954305,19 1,18.1045695 1,17 L1,3 L1,3 C1,1.8954305 1.8954305,1 3,1 Z"></path>
+                                <polyline points="4 11 8 15 16 6"></polyline>
+                            </svg>
+                        </div>
+                        <span>Show Distance Rings</span>
+                    </label>
+                </div>
+                <div>
+                    <label class="label-cbx text-sm font-medium text-slate-700">
+                        <input type="checkbox" id="toggleGridCheckbox" class="invisible">
+                        <div class="checkbox">
+                            <svg width="20px" height="20px" viewBox="0 0 20 20">
+                                <path d="M3,1 L17,1 L17,1 C18.1045695,1 19,1.8954305 19,3 L19,17 L19,17 C19,18.1045695 18.1045695,19 17,19 L3,19 L3,19 C1.8954305,19 1,18.1045695 1,17 L1,3 L1,3 C1,1.8954305 1.8954305,1 3,1 Z"></path>
+                                <polyline points="4 11 8 15 16 6"></polyline>
+                            </svg>
+                        </div>
+                        <span>Enable Grid Snapping</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 space-y-2">
+                <h2 class="text-lg font-semibold text-slate-600">Aspect Controls</h2>
+                <button id="addAspectButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out">
+                    Add Aspect
+                </button>
+                <button id="undeleteAspectButton" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out" disabled>
+                    Undelete Last Aspect
+                </button>
+                 <button id="clearMapButton" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out">
+                    Clear Entire Map
+                </button>
+            </div>
+            
+            <div class="pt-4 border-t border-slate-200 space-y-3">
+                <button id="toggleVocabularyButton" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow">
+                    Show Starter Vocabulary
+                </button>
+                <div id="starterVocabularyContainer" class="hidden space-y-3 pt-2">
+                    <div>
+                        <h4 class="font-semibold text-sm text-slate-600 mb-2">💠 EMOTIONS (Essence / Mood)</h4>
+                        <div id="vocab-emotions" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-sm text-slate-600 mb-2">🧩 THOUGHTS & BELIEFS (Node Prompts)</h4>
+                        <div id="vocab-thoughts" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-sm text-slate-600 mb-2">🔍 PATTERNS / HABITS</h4>
+                        <div id="vocab-patterns" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-sm text-slate-600 mb-2">🌀 INNER TENSIONS</h4>
+                        <div id="vocab-tensions" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-sm text-slate-600 mb-2">🌱 GROWTH THEMES</h4>
+                        <div id="vocab-growth" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-sm text-slate-600 mb-2">✨ MEMORY OR IMAGE FRAGMENTS</h4>
+                        <div id="vocab-memory" class="flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="selectedAspectControls" class="space-y-3 hidden pt-4 border-t border-slate-200">
+                <h2 class="text-lg font-semibold text-slate-600">Edit Aspect: <span id="selectedAspectName" class="font-normal"></span></h2>
+                <div><label for="aspectText" class="block text-sm font-medium text-slate-700">Text Label:</label><input type="text" id="aspectText" class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                <div><label for="aspectSize" class="block text-sm font-medium text-slate-700">Size (Intensity): <span id="aspectSizeValue">50</span></label><input type="range" id="aspectSize" min="15" max="100" value="50" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"></div>
+                <div><label class="block text-sm font-medium text-slate-700">Color (Emotional Tone):</label><div id="colorPalette" class="mt-1 grid grid-cols-6 gap-1"></div></div>
+                <div id="connectionControls"><label class="block text-sm font-medium text-slate-700">Connection to SELF:</label><div class="mt-1 flex space-x-2"><button id="solidLineButton" data-line-type="solid" class="line-type-button flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded-md text-sm">Solid</button><button id="dashedLineButton" data-line-type="dashed" class="line-type-button flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded-md text-sm">Dashed</button><button id="noLineButton" data-line-type="none" class="line-type-button flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded-md text-sm">None</button></div></div>
+                <div><label class="block text-sm font-medium text-slate-700">Aura Symbol:</label><div id="auraSymbols" class="mt-1 grid grid-cols-5 gap-1"></div></div>
+                <div><label class="block text-sm font-medium text-slate-700">Waveform (Resonance/Dissonance):</label><div class="mt-1 flex items-center space-x-2"><button id="resonanceWaveButton" data-wave-type="sine" class="wave-type-button flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded-md text-sm">Resonance (Sine)</button><button id="dissonanceWaveButton" data-wave-type="sawtooth" class="wave-type-button flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded-md text-sm">Dissonance (Saw)</button></div><div class="mt-2 flex items-center space-x-2"><button id="noWaveButton" data-wave-type="none" class="wave-type-button flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded-md text-sm">No Waveform</button></div><label for="waveAmplitude" class="block text-xs font-medium text-slate-700 mt-2">Amplitude: <span id="waveAmplitudeValue">10</span></label><input type="range" id="waveAmplitude" min="5" max="30" value="10" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"></div>
+                
+                <div class="flex space-x-2 pt-2">
+                    <button id="bringToFrontButton" class="w-full bg-slate-500 hover:bg-slate-600 text-white font-semibold py-1 px-3 rounded-lg shadow-sm transition duration-150 ease-in-out text-sm">
+                        Bring to Front
+                    </button>
+                    <button id="sendToBackButton" class="w-full bg-slate-500 hover:bg-slate-600 text-white font-semibold py-1 px-3 rounded-lg shadow-sm transition duration-150 ease-in-out text-sm">
+                        Send to Back
+                    </button>
+                </div>
+
+                <button id="deleteAspectButton" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out mt-2">Delete Aspect</button>
+            </div>
+
+            <div id="selfControls" class="space-y-3 hidden pt-4 border-t border-slate-200">
+                <h2 class="text-lg font-semibold text-slate-600">Edit SELF Node</h2>
+                <div><label class="block text-sm font-medium text-slate-700">Color (Emotional Tone):</label><div id="selfColorPalette" class="mt-1 grid grid-cols-6 gap-1"></div></div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 space-y-3">
+                <h2 class="text-lg font-semibold text-slate-600">Map Data & Narrative</h2>
+                <button id="generateNarrativeButton" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg shadow mb-2">
+                    Generate Narrative
+                </button>
+                <button id="saveMapButton" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow">
+                    Save Map (JSON)
+                </button>
+                <div>
+                    <label for="loadMapInput" class="block text-sm font-medium text-slate-700 mb-1">Load Map (JSON):</label>
+                    <input type="file" id="loadMapInput" accept=".json" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                </div>
+                <h2 class="text-lg font-semibold text-slate-600 mt-3">Export Map</h2>
+                <button id="exportPngButton" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg shadow">
+                    Export as PNG
+                </button>
+                <button id="exportSvgButton" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg shadow mt-2">
+                    Export as SVG
+                </button>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 space-y-3">
+                <h2 class="text-lg font-semibold text-slate-600">Help & Information</h2>
+                <button id="quickHelpButton" class="w-full bg-fuchsia-500 hover:bg-fuchsia-600 text-white font-semibold py-2 px-4 rounded-lg shadow">
+                    Quick Help
+                </button>
+                <a href="https://drive.google.com/file/d/1IPkqdP3zENqIkOgxRMJAETQX-RhgMlmM/view?usp=sharing" target="_blank" rel="noopener noreferrer" id="learnMoreFEMSButton" class="block w-full text-center bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow">
+                    Learn More about FEMS
+                </a>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 space-y-3">
+                <h2 class="text-lg font-semibold text-slate-600">Usage and Licensing</h2>
+                <p class="text-sm text-slate-600">
+                    Personal use of FEMS is free. To support future development, please consider a donation.
+                    <br><br>
+                    For all other uses, including commercial, academic, or therapeutic, a license is required. Please contact me at <a href="mailto:hello@thorstenbecker.de" class="text-indigo-500 hover:text-indigo-700">hello@thorstenbecker.de</a> to inquire about licensing.
+                </p>
+                <a href="https://ko-fi.com/thorstenbecker" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition duration-150 ease-in-out">
+                    <span class="font-bold mr-2">$</span>
+                    <span>Donate</span>
+                </a>
+            </div>
+
+        </div>
+        <div id="copyrightNotice" class="control-panel-footer"></div>
+    </div>
+
+    <div class="flex-1 p-4 order-1 md:order-2 flex justify-center items-center">
+        <div class="canvas-container shadow-xl">
+             <canvas id="backgroundCanvas" class="bg-white"></canvas>
+             <canvas id="femsCanvas" class="bg-transparent"></canvas>
+        </div>
+    </div>
+
+    <div id="textInputModal" class="modal"> <div class="modal-content"><span class="close-button" id="closeModalButton">&times;</span><h3 id="modalTitle" class="text-xl font-semibold mb-4">Enter Text</h3><input type="text" id="modalTextInput" class="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"><button id="modalSaveButton" class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow">Save</button></div></div>
+    <div id="messageModal" class="modal"> <div class="modal-content"><span class="close-button" id="closeMessageModalButton">&times;</span><h3 id="messageModalTitle" class="text-xl font-semibold mb-2">Notification</h3><p id="messageModalText" class="text-sm text-slate-700"></p><button id="messageModalOkButton" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow">OK</button></div></div>
+    <div id="narrativeModal" class="modal"> <div class="modal-content"><span class="close-button" id="closeNarrativeModalButton">&times;</span><h3 id="narrativeModalTitle" class="text-xl font-semibold mb-4">Generated Narrative</h3><textarea id="narrativeModalTextarea" readonly class="w-full h-64 p-2 border border-slate-300 rounded-md"></textarea><div class="flex justify-end space-x-2 mt-4"><button id="narrativeModalCopyButton" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow">Copy to Clipboard</button><button id="narrativeModalCloseButton" class="bg-gray-300 hover:bg-gray-400 text-slate-700 font-semibold py-2 px-4 rounded-lg shadow">Close</button></div></div></div>
+    <div id="quickHelpModal" class="modal"> <div class="modal-content"><span class="close-button" id="closeQuickHelpModalButton">&times;</span><h3 class="text-xl font-semibold mb-4">Quick Help - FEMS</h3><div id="quickHelpContent" class="text-sm text-slate-700 help-modal-content space-y-2">
+    <p><strong>Fuzzy Emotion Mapping System (FEMS)</strong> is a visual tool for exploring your emotional landscape.</p>
+    <p class="font-semibold">The Purpose of FEMS:</p>
+    <p class="ml-4">FEMS is a visual and intuitive way to make emotional clarity visible. Developed as part of the Clarity Navigation framework, it helps you gently explore your internal landscape by mapping how emotions resonate, relate, and move in relation to your self. The term "fuzzy" reflects the intuitive, non-binary nature of emotion—they blend, pulse, and shift without hard edges. This tool is not for diagnosis; it's an invitation to reflect, externalize, and better understand what already lives within you. It’s not about controlling your emotions, but about making contact with them.</p>
+    <p><strong>Core Concepts:</strong></p>
+    <ul class="list-disc list-inside ml-4">
+        <li><strong>SELF Node:</strong> The central circle representing your current emotional state.</li>
+        <li><strong>Aspects:</strong> Circles around SELF representing emotional influences (thoughts, people, memories, etc.).</li>
+        <li><strong>Size:</strong> Emotional intensity of an Aspect (larger = stronger).</li>
+        <li><strong>Color:</strong> Emotional tone (e.g., Green for calm, Red for stress). Hover over color buttons for tooltips.</li>
+        <li><strong>Distance to SELF:</strong> Relevance or emotional presence (closer = more pressing).</li>
+        <li><strong>Lines to SELF:</strong> Solid for strong influence, Dashed for subtle/uncertain.</li>
+        <li><strong>Aura Symbols:</strong> Optional emotional modifiers (e.g., 🔒 Blocked, 🌀 Spiraling). Hover for tooltips.</li>
+        <li><strong>Waveforms:</strong> Sine wave for resonance (feels good), Sawtooth for dissonance (feels off). Amplitude shows strength. Waveform color is high-contrast (typically black) for readability.</li>
+    </ul>
+    <p><strong>Basic Interactions:</strong></p>
+    <ul class="list-disc list-inside ml-4">
+        <li><strong>Add Aspect:</strong> Click the "Add Aspect" button.</li>
+        <li><strong>Starter Vocabulary:</strong> Use the collapsible vocabulary list to quickly add or rename aspects.</li>
+        <li><strong>Move Aspect:</strong> Click and drag an Aspect circle.</li>
+        <li><strong>Edit Properties:</strong> Click an Aspect or SELF to select it. Use the controls on the left to edit text, size, color, etc.</li>
+        <li><strong>Edit Text (Quick):</strong> Double-click an Aspect to open a text input dialog. (Renaming SELF is disabled).</li>
+        <li><strong>Pan Canvas:</strong> Click and drag the canvas background.</li>
+        <li><strong>Zoom Canvas:</strong> Use your mouse wheel over the canvas. Use +/- buttons for finer control. On touch devices, use pinch-to-zoom.</li>
+        <li><strong>Layering:</strong> Use "Bring to Front" / "Send to Back" in the edit panel to control which aspects overlap others.</li>
+        <li><strong>Delete Aspect:</strong> Select an Aspect and click "Delete Aspect". Use "Undelete" to recover the last one.</li>
+        <li><strong>Clear Map:</strong> Resets the entire map to start fresh.</li>
+    </ul>
+    <p><strong>Keyboard Shortcuts:</strong></p>
+    <ul class="list-disc list-inside ml-4">
+        <li><strong>A:</strong> Add a new Aspect.</li>
+        <li><strong>Delete / Backspace:</strong> Delete the selected Aspect.</li>
+        <li><strong>C:</strong> Center the view on the SELF node.</li>
+        <li><strong>R:</strong> Toggle the distance rings.</li>
+        <li><strong>G:</strong> Toggle the grid snapping.</li>
+        <li><strong>+ / =:</strong> Zoom in.</li>
+        <li><strong>-:</strong> Zoom out.</li>
+        <li><strong>0:</strong> Reset the view completely.</li>
+        <li><strong>? / /:</strong> Open this Quick Help window.</li>
+        <li><strong>Ctrl/Cmd + Z:</strong> Undelete the last deleted Aspect.</li>
+        <li><strong>Ctrl/Cmd + S:</strong> Save the current map as a JSON file.</li>
+        <li><strong>Ctrl/Cmd + O:</strong> Open the dialog to load a map from a JSON file.</li>
+    </ul>
+    <p>Use "Generate Narrative" to get a text-based summary of your map. Explore other options for saving, loading, and exporting your map.</p>
+    <p><strong>Feedback and Analysis:</strong></p>
+    <p>To receive feedback and guidance on your FEMS map you can upload it to the Clarity Mirror custom GPT here: <a href="https://chatgpt.com/g/g-67e9376fe7dc81919293ee6e06131cf8-the-clarity-mirror" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">https://chatgpt.com/g/g-67e9376fe7dc81919293ee6e06131cf8-the-clarity-mirror</a>. You can prompt for an analysis or use the following starter prompt:</p>
+    <p class="italic ml-4">I've uploaded my clarity map. Please take a look and offer your interpretation:</p>
+    <ul class="list-decimal list-inside ml-8">
+        <li>What emotional patterns or dynamics do you see?</li>
+        <li>Which elements seem dominant or distant?</li>
+        <li>Are there tensions, resonance, or blocks I should reflect on?</li>
+    </ul>
+    <p><strong>For Researchers:</strong></p>
+    <p>If you are a researcher and would like to have a map turned into quantitative data, you can use the Clarity Mapper Pro here: <a href="https://chatgpt.com/g/g-67fb7013a60481919127bd14f74aa72e-clarity-mapper-pro" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">https://chatgpt.com/g/g-67fb7013a60481919127bd14f74aa72e-clarity-mapper-pro</a>.</p>
+    <p class="pt-2 mt-2 border-t border-slate-200">
+        <strong>Usage, Licensing & Support:</strong><br>
+        This tool is free for personal, non-commercial use. If you find it valuable, please consider
+        <a href="https://ko-fi.com/thorstenbecker" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">donating to support its development</a>.
+        For all other uses, including commercial, academic, or therapeutic, a license is required. Please contact
+        <a href="mailto:hello@thorstenbecker.de" class="text-indigo-500 hover:text-indigo-700">hello@thorstenbecker.de</a> to inquire.
+    </p>
+</div><button id="quickHelpModalCloseButton" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow">OK</button></div></div>
+
+    <div id="confirmClearModal" class="modal">
+        <div class="modal-content">
+            <h3 id="confirmClearModalTitle" class="text-xl font-semibold mb-4">Confirm Action</h3>
+            <p id="confirmClearModalText" class="text-sm text-slate-700 mb-6">Are you sure you want to clear the entire map? This action cannot be undone.</p>
+            <div class="flex justify-end space-x-3">
+                <button id="confirmClearCancelButton" class="bg-gray-300 hover:bg-gray-400 text-slate-700 font-semibold py-2 px-4 rounded-lg shadow">Cancel</button>
+                <button id="confirmClearOkButton" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow">Clear Map</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+        // --- Canvas Setup ---
+        const canvas = document.getElementById('femsCanvas');
+        const ctx = canvas.getContext('2d');
+        const backgroundCanvas = document.getElementById('backgroundCanvas');
+        const backgroundCtx = backgroundCanvas.getContext('2d');
+        let canvasContainer = canvas.parentElement;
+
+        // --- DOM Elements ---
+        const addAspectButton = document.getElementById('addAspectButton');
+        const undeleteAspectButton = document.getElementById('undeleteAspectButton');
+        const clearMapButton = document.getElementById('clearMapButton');
+        const aspectCountDisplay = document.getElementById('aspectCountDisplay');
+        const selectedAspectControls = document.getElementById('selectedAspectControls');
+        const selfControls = document.getElementById('selfControls');
+        const aspectText = document.getElementById('aspectText');
+        const aspectSize = document.getElementById('aspectSize');
+        const aspectSizeValue = document.getElementById('aspectSizeValue');
+        const colorPaletteContainer = document.getElementById('colorPalette');
+        const selfColorPaletteContainer = document.getElementById('selfColorPalette');
+        const auraSymbolsContainer = document.getElementById('auraSymbols');
+        const waveAmplitude = document.getElementById('waveAmplitude');
+        const waveAmplitudeValue = document.getElementById('waveAmplitudeValue');
+        const deleteAspectButton = document.getElementById('deleteAspectButton');
+        const selectedAspectName = document.getElementById('selectedAspectName');
+        const bringToFrontButton = document.getElementById('bringToFrontButton');
+        const sendToBackButton = document.getElementById('sendToBackButton');
+        const toggleRingsCheckbox = document.getElementById('toggleRingsCheckbox');
+        const toggleGridCheckbox = document.getElementById('toggleGridCheckbox');
+        const resetViewButton = document.getElementById('resetViewButton');
+        const centerOnSelfButton = document.getElementById('centerOnSelfButton');
+        const zoomInButton = document.getElementById('zoomInButton');
+        const zoomOutButton = document.getElementById('zoomOutButton');
+        const generateNarrativeButton = document.getElementById('generateNarrativeButton');
+        const narrativeModal = document.getElementById('narrativeModal');
+        const closeNarrativeModalButton = document.getElementById('closeNarrativeModalButton');
+        const narrativeModalTextarea = document.getElementById('narrativeModalTextarea');
+        const narrativeModalCopyButton = document.getElementById('narrativeModalCopyButton');
+        const narrativeModalCloseButton = document.getElementById('narrativeModalCloseButton');
+        const quickHelpButton = document.getElementById('quickHelpButton');
+        const quickHelpModal = document.getElementById('quickHelpModal');
+        const closeQuickHelpModalButton = document.getElementById('closeQuickHelpModalButton');
+        const quickHelpModalCloseButton = document.getElementById('quickHelpModalCloseButton');
+        const copyrightNoticeDiv = document.getElementById('copyrightNotice');
+        const saveMapButton = document.getElementById('saveMapButton');
+        const loadMapInput = document.getElementById('loadMapInput');
+        const exportPngButton = document.getElementById('exportPngButton');
+        const exportSvgButton = document.getElementById('exportSvgButton');
+        const textInputModal = document.getElementById('textInputModal');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalTextInput = document.getElementById('modalTextInput');
+        const modalSaveButton = document.getElementById('modalSaveButton');
+        const messageModal = document.getElementById('messageModal');
+        const closeMessageModalButton = document.getElementById('closeMessageModalButton');
+        const messageModalTitle = document.getElementById('messageModalTitle');
+        const messageModalText = document.getElementById('messageModalText');
+        const messageModalOkButton = document.getElementById('messageModalOkButton');
+        const confirmClearModal = document.getElementById('confirmClearModal');
+        const confirmClearOkButton = document.getElementById('confirmClearOkButton');
+        const confirmClearCancelButton = document.getElementById('confirmClearCancelButton');
+        const toggleVocabularyButton = document.getElementById('toggleVocabularyButton');
+        const starterVocabularyContainer = document.getElementById('starterVocabularyContainer');
+
+        // --- Cached DOM Selections ---
+        const lineTypeButtons = document.querySelectorAll('.line-type-button');
+        const waveTypeButtons = document.querySelectorAll('.wave-type-button');
+
+        // --- Configuration ---
+        const FEMS_COLORS = { GREEN: { value: '#4ade80', name: 'Grounded, Safe', tooltip: 'Support, healing, calm' }, YELLOW: { value: '#facc15', name: 'Curious, Alert', tooltip: 'New ideas, tensions, focus' }, RED: { value: '#f87171', name: 'Stress, Overwhelm', tooltip: 'Pressure, urgency, conflict' }, GRAY: { value: '#9ca3af', name: 'Foggy, Numb', tooltip: 'Confusion, disconnection' }, BLUE: { value: '#60a5fa', name: 'Reflective, Calm', tooltip: 'Insight, peace, emotional space' }, PURPLE: { value: '#c084fc', name: 'Deep, Emotional', tooltip: 'Grief, awe, transformation' } };
+        const AURA_SYMBOLS = { BLOCKED: { symbol: '🔒', name: 'Blocked', tooltip: 'Emotion is inaccessible' }, SPIRALING: { symbol: '🌀', name: 'Spiraling', tooltip: 'Emotion repeats or loops' }, SOFTENING: { symbol: '💧', name: 'Softening', tooltip: 'Emotion is easing' }, GROWTH: { symbol: '🌿', name: 'Growth', tooltip: 'Potential for healing' }, FIXED: { symbol: '🪨', name: 'Fixed', tooltip: 'Feels heavy or unchangeable' }, NONE: { symbol: ' ', name: 'None', tooltip: 'No aura symbol'} };
+        const SELF_DEFAULT_RADIUS = 60; const SELF_DEFAULT_COLOR = FEMS_COLORS.GRAY.value; const SELF_DEFAULT_TEXT = 'SELF';
+        const ASPECT_DEFAULT_RADIUS = 40; const ASPECT_DEFAULT_COLOR = FEMS_COLORS.YELLOW.value;
+        const GRID_SIZE = 25; const CONCENTRIC_RING_RADII = [120, 240, 360];
+        const STARTER_VOCABULARY = { emotions: ["Calm", "Overwhelm", "Excitement", "Sadness", "Anxiety", "Hope", "Restlessness", "Tenderness", "Joy", "Fatigue"], thoughts: ["I should be further along", "This always happens", "What if I fail?", "I need to make it perfect", "I want this more than anything", "Maybe I’m not ready", "I just want peace"], patterns: ["Overcommitting", "Avoiding feedback", "Seeking distraction", "Waiting for the right time", "Looping ideas", "Not finishing things"], tensions: ["Desire vs. Duty", "Stillness vs. Action", "Being seen vs. Staying safe", "Letting go vs. Holding on"], growth: ["I’m learning to say no", "I’m opening to trust", "This doesn’t define me", "I am enough—for now", "I want to build something slow"], memory: ["The last time I felt calm…", "A voice I can’t forget", "A doorway I didn’t walk through", "A place I always return to in dreams"] };
+        const FONT_SIZE_STANDARD = 12; const MAX_SCALED_FONT_SIZE = 18; const FONT_SCALING_DIVISOR = 3.5; const MAX_TEXT_WIDTH_FACTOR = 1.7;
+        const MIN_ZOOM = 0.2; const MAX_ZOOM = 3.0; const ZOOM_SENSITIVITY = 0.001; const ZOOM_BUTTON_FACTOR = 1.2;
+
+        // --- State Management ---
+        const state = {
+            selfCircle: { id: 'self', text: SELF_DEFAULT_TEXT, x: 0, y: 0, radius: SELF_DEFAULT_RADIUS, color: SELF_DEFAULT_COLOR, isSelf: true, aura: null, waveform: null },
+            aspects: [],
+            selectedCircleId: null,
+            draggingCircleId: null,
+            dragOffset: { x: 0, y: 0 },
+            nextAspectId: 0,
+            lastDeletedAspect: null,
+            view: {
+                scale: 1.0,
+                panX: 0,
+                panY: 0,
+                isPanning: false,
+                lastPanCoord: { x: 0, y: 0 },
+                showRings: true,
+                showGrid: false,
+            },
+            ui: {
+                lastTapTime: 0,
+                isPinching: false,
+                initialPinchDistance: 0,
+                isPerformingCriticalOperation: false,
+                hasShownSelfRenameWarning: false,
+                hasShownClusterWarning: false,
+                currentEditingCircleForModal: null
+            }
+        };
+
+        // --- Helper Functions ---
+        const getSelectedCircle = () => {
+            if (!state.selectedCircleId) return null;
+            if (state.selectedCircleId === 'self') return state.selfCircle;
+            return state.aspects.find(a => a.id === state.selectedCircleId);
+        };
+        const getDraggingCircle = () => {
+            if (!state.draggingCircleId) return null;
+            return state.aspects.find(a => a.id === state.draggingCircleId);
+        };
+        function setCopyright() { const currentYear = new Date().getFullYear(); copyrightNoticeDiv.innerHTML = `&copy; ${currentYear} Thorsten Becker. <a href="https://www.linkedin.com/in/thorsten-becker-de/" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">Connect on Linked</a>`;}
+        
+        // --- Core Application Logic ---
+        function resetSelfCircleToDefaults() {
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            const logicalCanvasWidth = canvas.width / devicePixelRatio;
+            const logicalCanvasHeight = canvas.height / devicePixelRatio;
+            state.selfCircle.text = SELF_DEFAULT_TEXT;
+            state.selfCircle.color = SELF_DEFAULT_COLOR;
+            state.selfCircle.radius = SELF_DEFAULT_RADIUS;
+            state.selfCircle.x = logicalCanvasWidth / 2;
+            state.selfCircle.y = logicalCanvasHeight / 2;
+            state.selfCircle.aura = null;
+            state.selfCircle.waveform = null;
+        }
+        function resetViewAndSelf(fullReset = false) {
+            state.view.scale = 1.0;
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            const logicalCanvasWidth = canvas.width / devicePixelRatio;
+            const logicalCanvasHeight = canvas.height / devicePixelRatio;
+            if (fullReset) {
+                resetSelfCircleToDefaults();
+            } else {
+                state.selfCircle.x = logicalCanvasWidth / 2;
+                state.selfCircle.y = logicalCanvasHeight / 2;
+            }
+            state.view.panX = logicalCanvasWidth / 2 - (state.selfCircle.x * state.view.scale);
+            state.view.panY = logicalCanvasHeight / 2 - (state.selfCircle.y * state.view.scale);
+        }
+        function updateAspectCount() { aspectCountDisplay.textContent = state.aspects.length; }
+        function resizeCanvas() { 
+            const maxWidth = 1040; const maxHeight = 780; 
+            const containerWidth = canvasContainer.clientWidth; 
+            const containerHeight = canvasContainer.clientHeight;
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            const canvasWidth = Math.min(containerWidth, maxWidth);
+            const canvasHeight = Math.min(containerHeight, maxHeight);
+
+            [canvas, backgroundCanvas].forEach(c => {
+                c.width = canvasWidth * devicePixelRatio;
+                c.height = canvasHeight * devicePixelRatio;
+                c.style.width = `${canvasWidth}px`;
+                c.style.height = `${canvasHeight}px`;
+            });
+
+            let isInitialLoad = (state.selfCircle.x === 0 && state.selfCircle.y === 0 && state.view.panX === 0 && state.view.panY === 0 && state.view.scale === 1.0); 
+            if (isInitialLoad) { 
+                resetViewAndSelf(true); 
+            }
+            drawAll(); 
+        }
+
+        function drawBackground() {
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            const logicalCanvasWidth = backgroundCanvas.width / devicePixelRatio;
+            const logicalCanvasHeight = backgroundCanvas.height / devicePixelRatio;
+            backgroundCtx.save();
+            backgroundCtx.scale(devicePixelRatio, devicePixelRatio);
+            backgroundCtx.clearRect(0, 0, logicalCanvasWidth, logicalCanvasHeight);
+            
+            backgroundCtx.fillStyle = 'white';
+            backgroundCtx.fillRect(0,0,logicalCanvasWidth,logicalCanvasHeight);
+            
+            backgroundCtx.translate(state.view.panX, state.view.panY);
+            backgroundCtx.scale(state.view.scale, state.view.scale);
+            if (state.view.showGrid) drawGrid();
+            if (state.view.showRings) drawConcentricRings();
+            backgroundCtx.restore();
+        }
+
+        function drawGrid() { 
+            backgroundCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)'; 
+            backgroundCtx.lineWidth = 0.5 / state.view.scale; 
+            const logicalCanvasWidth = canvas.width / (window.devicePixelRatio||1); 
+            const logicalCanvasHeight = canvas.height / (window.devicePixelRatio||1); 
+            const xStartWorld = (-state.view.panX)/state.view.scale; 
+            const yStartWorld = (-state.view.panY)/state.view.scale; 
+            const xEndWorld = (logicalCanvasWidth - state.view.panX)/state.view.scale; 
+            const yEndWorld = (logicalCanvasHeight - state.view.panY)/state.view.scale; 
+            const firstGridX = Math.floor(xStartWorld/GRID_SIZE)*GRID_SIZE; 
+            const firstGridY = Math.floor(yStartWorld/GRID_SIZE)*GRID_SIZE; 
+            for (let x = firstGridX; x <= xEndWorld; x += GRID_SIZE) { backgroundCtx.beginPath(); backgroundCtx.moveTo(x, yStartWorld); backgroundCtx.lineTo(x, yEndWorld); backgroundCtx.stroke(); } 
+            for (let y = firstGridY; y <= yEndWorld; y += GRID_SIZE) { backgroundCtx.beginPath(); backgroundCtx.moveTo(xStartWorld, y); backgroundCtx.lineTo(xEndWorld, y); backgroundCtx.stroke(); }
+        }
+        function drawConcentricRings() { 
+            if (!state.selfCircle) return; 
+            backgroundCtx.strokeStyle = 'rgba(100,100,100,0.2)'; 
+            backgroundCtx.lineWidth = 1 / state.view.scale; 
+            backgroundCtx.setLineDash([5/state.view.scale, 5/state.view.scale]); 
+            CONCENTRIC_RING_RADII.forEach(radius => { backgroundCtx.beginPath(); backgroundCtx.arc(state.selfCircle.x, state.selfCircle.y, radius, 0, Math.PI * 2); backgroundCtx.stroke(); }); 
+            backgroundCtx.setLineDash([]);
+        }
+        
+        function drawCircle(circle, targetCtx = ctx) {
+            targetCtx.beginPath();
+            targetCtx.arc(circle.x, circle.y, circle.radius, 0, Math.PI*2);
+            targetCtx.fillStyle = circle.color;
+            targetCtx.fill();
+            targetCtx.strokeStyle = '#374151';
+            targetCtx.lineWidth = (circle.id === state.selectedCircleId && targetCtx === ctx ? 3 : 1.5)/state.view.scale;
+            targetCtx.stroke();
+
+            targetCtx.fillStyle = kontrastFarbe(circle.color);
+            targetCtx.textAlign = 'center';
+            targetCtx.textBaseline = 'middle';
+            
+            const layout = calculateTextLayout(circle.text, circle.radius, targetCtx);
+            const { fontSize, lines } = layout;
+            
+            targetCtx.font = `bold ${fontSize}px Inter, sans-serif`;
+            const lineHeight = fontSize * 1.2;
+            const totalTextHeight = lines.length * lineHeight;
+            let startY = circle.y - (totalTextHeight / 2) + (lineHeight / 2);
+
+            for (let j = 0; j < lines.length; j++) {
+                 if (lines[j].trim().length > 0) { 
+                    targetCtx.fillText(lines[j], circle.x, startY);
+                    startY += lineHeight;
+                }
+            }
+
+            if (circle.aura && circle.aura.symbol.trim() !== '') {
+                const symbolSize = fontSize * 1.5; 
+                targetCtx.font = `${symbolSize}px Inter, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif`;
+                targetCtx.fillText(circle.aura.symbol, circle.x + circle.radius*0.5, circle.y - circle.radius*0.5);
+            }
+
+            if (circle.waveform && circle.waveform.type !== 'none') {
+                drawWaveform(circle, targetCtx);
+            }
+        }
+
+        function calculateTextLayout(text, radius, context) {
+            const maxTextWidth = radius * MAX_TEXT_WIDTH_FACTOR;
+            let idealScaledFontSize = Math.min(MAX_SCALED_FONT_SIZE, Math.max(FONT_SIZE_STANDARD, radius / FONT_SCALING_DIVISOR));
+            let finalFontSize = FONT_SIZE_STANDARD;
+
+            for (let currentTestSize = Math.floor(idealScaledFontSize); currentTestSize >= FONT_SIZE_STANDARD; currentTestSize--) {
+                context.font = `bold ${currentTestSize}px Inter, sans-serif`;
+                if (context.measureText(text).width <= maxTextWidth) {
+                    finalFontSize = currentTestSize;
+                    break;
+                }
+            }
+            context.font = `bold ${finalFontSize}px Inter, sans-serif`;
+
+            const words = text.split(' ');
+            let currentLine = '';
+            const lines = [];
+
+            for (let i = 0; i < words.length; i++) {
+                let word = words[i];
+                if (context.measureText(word).width > maxTextWidth && maxTextWidth > 0) {
+                    if (currentLine.length > 0) { lines.push(currentLine.trim()); currentLine = ''; }
+                    let tempSubLine = "";
+                    for (let k = 0; k < word.length; k++) {
+                        const char = word[k];
+                        if (context.measureText(tempSubLine + char).width > maxTextWidth && tempSubLine.length > 0) {
+                            lines.push(tempSubLine); tempSubLine = char;
+                        } else { tempSubLine += char; }
+                    }
+                    if (tempSubLine.length > 0) lines.push(tempSubLine);
+                    continue;
+                }
+
+                const testLine = currentLine.length === 0 ? word : currentLine + ' ' + word;
+                if (context.measureText(testLine).width <= maxTextWidth) {
+                    currentLine = testLine;
+                } else {
+                    if (currentLine.length > 0) lines.push(currentLine.trim());
+                    currentLine = word;
+                    if (context.measureText(currentLine).width > maxTextWidth) {
+                        lines.push(currentLine.trim()); currentLine = "";
+                    }
+                }
+            }
+            if (currentLine.length > 0) lines.push(currentLine.trim());
+            return { fontSize: finalFontSize, lines: lines };
+        }
+
+
+        function drawLine(fromCircle, toCircle, lineType, targetCtx = ctx) { targetCtx.beginPath(); const angle = Math.atan2(toCircle.y-fromCircle.y, toCircle.x-fromCircle.x); const startX = fromCircle.x+fromCircle.radius*Math.cos(angle); const startY = fromCircle.y+fromCircle.radius*Math.sin(angle); const endX = toCircle.x-toCircle.radius*Math.cos(angle); const endY = toCircle.y-toCircle.radius*Math.sin(angle); targetCtx.moveTo(startX, startY); targetCtx.lineTo(endX, endY); targetCtx.strokeStyle = '#374151'; targetCtx.lineWidth = 2/state.view.scale; if(lineType === 'dashed') targetCtx.setLineDash([10/state.view.scale, 5/state.view.scale]); else targetCtx.setLineDash([]); targetCtx.stroke(); targetCtx.setLineDash([]);}
+        function drawWaveform(circle, targetCtx=ctx) {
+            if (!circle.waveform || circle.waveform.type==='none') return;
+            const {type, amplitude: rawAmplitude} = circle.waveform;
+            const A_MIN_FACTOR = 0.05; const A_MAX_FACTOR = 0.20; 
+            let min_visual_amp = circle.radius * A_MIN_FACTOR; let max_visual_amp = circle.radius * A_MAX_FACTOR;
+            min_visual_amp = Math.max(min_visual_amp, 0.5); max_visual_amp = Math.max(max_visual_amp, min_visual_amp); 
+            let effectiveAmplitude;
+            if (min_visual_amp >= max_visual_amp) { effectiveAmplitude = min_visual_amp; } else { const rawAmplitudeNormalized = (rawAmplitude - 5) / (30 - 5); effectiveAmplitude = min_visual_amp + rawAmplitudeNormalized * (max_visual_amp - min_visual_amp); }
+            effectiveAmplitude = Math.max(0, effectiveAmplitude); 
+            const waveWidth = circle.radius * 1.0; 
+            const startX = circle.x - waveWidth / 2; const endX = circle.x + waveWidth / 2;
+            const marginFromBottomEdge = circle.radius * 0.1; const baseY = circle.y + circle.radius - effectiveAmplitude - marginFromBottomEdge;
+            const waveStrokeColor = kontrastFarbe(circle.color);
+            targetCtx.beginPath(); targetCtx.moveTo(startX, baseY); 
+            targetCtx.lineWidth = Math.max(1, 1.5 / state.view.scale); targetCtx.strokeStyle = waveStrokeColor; 
+            if (type==='sine') { for (let i=startX; i<=endX; i++) { const phase = ((i-startX)/waveWidth)*Math.PI*2; targetCtx.lineTo(i, baseY - Math.sin(phase)*effectiveAmplitude); }
+            } else if (type==='sawtooth') {
+                const segments = Math.max(4, Math.floor(waveWidth / 6)); const segmentWidth = waveWidth/segments;
+                if (segmentWidth > 0 && effectiveAmplitude > 0) { for (let i=0; i<segments; i++) { targetCtx.lineTo(startX + i*segmentWidth + segmentWidth/2, baseY - effectiveAmplitude); targetCtx.lineTo(startX + (i+1)*segmentWidth, baseY); }
+                } else if (effectiveAmplitude > 0) { targetCtx.lineTo(circle.x, baseY - effectiveAmplitude); targetCtx.lineTo(circle.x, baseY); }
+            }
+            targetCtx.stroke();
+        }
+        function kontrastFarbe(hexcolor){ hexcolor = hexcolor.replace("#", ""); var r=parseInt(hexcolor.substr(0,2),16); var g=parseInt(hexcolor.substr(2,2),16); var b=parseInt(hexcolor.substr(4,2),16); var yiq=((r*299)+(g*587)+(b*114))/1000; return (yiq >= 128) ? '#000000':'#FFFFFF';}
+        
+        function drawAll() {
+            drawBackground();
+            draw();
+        }
+        
+        function draw() { 
+            const devicePixelRatio = window.devicePixelRatio||1; 
+            const logicalCanvasWidth = canvas.width/devicePixelRatio; 
+            const logicalCanvasHeight = canvas.height/devicePixelRatio; 
+            ctx.save(); 
+            ctx.scale(devicePixelRatio, devicePixelRatio); 
+            ctx.clearRect(0,0,logicalCanvasWidth,logicalCanvasHeight); 
+            ctx.translate(state.view.panX, state.view.panY); 
+            ctx.scale(state.view.scale, state.view.scale); 
+            drawCircle(state.selfCircle); 
+            state.aspects.forEach(aspect => { if (aspect.connectionToSelf && aspect.connectionToSelf !== 'none') drawLine(aspect, state.selfCircle, aspect.connectionToSelf); }); 
+            state.aspects.forEach(c => drawCircle(c)); 
+            ctx.restore(); 
+        }
+
+        function getScreenToWorldPos(screenX, screenY) { const rect = canvas.getBoundingClientRect(); const logicalCanvasX = (screenX-rect.left); const logicalCanvasY = (screenY-rect.top); const worldX = (logicalCanvasX-state.view.panX)/state.view.scale; const worldY = (logicalCanvasY-state.view.panY)/state.view.scale; return {x: worldX, y: worldY};}
+        function handleMouseDown(e) { const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0); const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0); const worldPos = getScreenToWorldPos(clientX, clientY); let clickedOnCircle = false; for (let i=state.aspects.length-1; i>=0; i--) { const aspect=state.aspects[i]; const dist = Math.hypot(aspect.x-worldPos.x, aspect.y-worldPos.y); if (dist <= aspect.radius) { state.selectedCircleId = aspect.id; state.draggingCircleId = aspect.id; state.dragOffset.x = worldPos.x - aspect.x; state.dragOffset.y = worldPos.y - aspect.y; clickedOnCircle = true; state.view.isPanning = false; canvas.classList.remove('grabbing'); break;}} if (!clickedOnCircle) { const distSelf = Math.hypot(state.selfCircle.x-worldPos.x, state.selfCircle.y-worldPos.y); if (distSelf <= state.selfCircle.radius) { state.selectedCircleId = state.selfCircle.id; state.draggingCircleId = null; clickedOnCircle = true; state.view.isPanning = false; canvas.classList.remove('grabbing');}} if (!clickedOnCircle) { state.selectedCircleId = null; state.draggingCircleId = null; state.view.isPanning = true; const rect = canvas.getBoundingClientRect(); state.view.lastPanCoord.x = clientX - rect.left; state.view.lastPanCoord.y = clientY - rect.top; canvas.classList.add('grabbing');} updateControls(); draw(); }
+        function handleMouseMove(e) { const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0); const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0); const draggingCircle = getDraggingCircle(); if (draggingCircle && !draggingCircle.isSelf) { const worldPos = getScreenToWorldPos(clientX, clientY); draggingCircle.x = worldPos.x - state.dragOffset.x; draggingCircle.y = worldPos.y - state.dragOffset.y; draw();} else if (state.view.isPanning) { const rect = canvas.getBoundingClientRect(); const currentScreenX = clientX - rect.left; const currentScreenY = clientY - rect.top; state.view.panX += currentScreenX - state.view.lastPanCoord.x; state.view.panY += currentScreenY - state.view.lastPanCoord.y; state.view.lastPanCoord.x = currentScreenX; state.view.lastPanCoord.y = currentScreenY; drawAll();} }
+        function handleMouseUp(e) {
+            const draggingCircle = getDraggingCircle();
+            if (draggingCircle && !draggingCircle.isSelf) {
+                if (state.view.showGrid) {
+                    draggingCircle.x = Math.round(draggingCircle.x / GRID_SIZE) * GRID_SIZE;
+                    draggingCircle.y = Math.round(draggingCircle.y / GRID_SIZE) * GRID_SIZE;
+                }
+                checkClusterWarning(draggingCircle);
+            }
+            state.draggingCircleId = null;
+            if (state.view.isPanning) {
+                state.view.isPanning = false;
+                canvas.classList.remove('grabbing');
+            }
+            draw();
+        }
+        function handleZoomAction(zoom) { const newScaleCandidate = zoom ? state.view.scale * ZOOM_BUTTON_FACTOR : state.view.scale / ZOOM_BUTTON_FACTOR; const newScale = Math.min(Math.max(newScaleCandidate, MIN_ZOOM), MAX_ZOOM); const devicePixelRatio = window.devicePixelRatio || 1; const logicalCanvasWidth = canvas.width / devicePixelRatio; const logicalCanvasHeight = canvas.height / devicePixelRatio; const viewCenterX = logicalCanvasWidth / 2; const viewCenterY = logicalCanvasHeight / 2; state.view.panX = viewCenterX - (viewCenterX - state.view.panX) * (newScale / state.view.scale); state.view.panY = viewCenterY - (viewCenterY - state.view.panY) * (newScale / state.view.scale); state.view.scale = newScale; drawAll(); }
+        zoomInButton.addEventListener('click', () => handleZoomAction(true)); zoomOutButton.addEventListener('click', () => handleZoomAction(false));
+        function handleWheel(e) { e.preventDefault(); const scrollDelta = e.deltaY * ZOOM_SENSITIVITY; const newScaleCandidate = state.view.scale * (1-scrollDelta); const newScale = Math.min(Math.max(newScaleCandidate, MIN_ZOOM), MAX_ZOOM); const clientX = e.clientX; const clientY = e.clientY; const rect = canvas.getBoundingClientRect(); const mouseXOnCanvas = clientX - rect.left; const mouseYOnCanvas = clientY - rect.top; state.view.panX = mouseXOnCanvas - (mouseXOnCanvas - state.view.panX) * (newScale / state.view.scale); state.view.panY = mouseYOnCanvas - (mouseYOnCanvas - state.view.panY) * (newScale / state.view.scale); state.view.scale = newScale; drawAll();}
+        resetViewButton.addEventListener('click', () => { resetViewAndSelf(true); drawAll();});
+        centerOnSelfButton.addEventListener('click', () => { const devicePixelRatio = window.devicePixelRatio || 1; const logicalCanvasWidth = canvas.width / devicePixelRatio; const logicalCanvasHeight = canvas.height / devicePixelRatio; state.view.panX = logicalCanvasWidth / 2 - (state.selfCircle.x * state.view.scale); state.view.panY = logicalCanvasHeight / 2 - (state.selfCircle.y * state.view.scale); drawAll(); });
+        
+        function handleDoubleClick(e) { const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0); const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0); const worldPos = getScreenToWorldPos(clientX, clientY); let targetCircle=null; for (let i=state.aspects.length-1; i>=0; i--) { const aspect=state.aspects[i]; const dist=Math.hypot(aspect.x-worldPos.x, aspect.y-worldPos.y); if (dist <= aspect.radius) { targetCircle=aspect; break;}} if (!targetCircle) { const distSelf=Math.hypot(state.selfCircle.x-worldPos.x, state.selfCircle.y-worldPos.y); if (distSelf <= state.selfCircle.radius) targetCircle=state.selfCircle;} if (targetCircle && !targetCircle.isSelf) { state.ui.currentEditingCircleForModal = targetCircle; modalTitle.textContent = `Edit Text for Aspect`; modalTextInput.value = targetCircle.text; textInputModal.style.display = "block"; modalTextInput.focus(); updateControls(); } }
+        closeModalButton.onclick = () => { textInputModal.style.display = "none"; state.ui.currentEditingCircleForModal = null; };
+        modalSaveButton.onclick = () => { if (state.ui.currentEditingCircleForModal) { state.ui.currentEditingCircleForModal.text = modalTextInput.value; if (state.selectedCircleId === state.ui.currentEditingCircleForModal.id) { aspectText.value = modalTextInput.value; selectedAspectName.textContent = modalTextInput.value.substring(0, 20) + (modalTextInput.value.length > 20 ? '...' : '');} draw();} textInputModal.style.display = "none"; state.ui.currentEditingCircleForModal = null;};
+        closeMessageModalButton.onclick = () => messageModal.style.display = "none"; messageModalOkButton.onclick = () => messageModal.style.display = "none";
+        closeNarrativeModalButton.onclick = () => narrativeModal.style.display = "none"; narrativeModalCloseButton.onclick = () => narrativeModal.style.display = "none"; narrativeModalCopyButton.onclick = () => { narrativeModalTextarea.select(); document.execCommand('copy'); showMessage("Narrative Copied", "The generated narrative has been copied.");};
+        closeQuickHelpModalButton.onclick = () => quickHelpModal.style.display = "none"; quickHelpModalCloseButton.onclick = () => quickHelpModal.style.display = "none"; 
+        quickHelpButton.onclick = () => { quickHelpModal.style.display = "block"; const quickHelpContentDiv = quickHelpModal.querySelector('.help-modal-content'); if (quickHelpContentDiv) quickHelpContentDiv.scrollTop = 0; };
+        window.onclick = (event) => {
+            if (event.target == textInputModal) { textInputModal.style.display = "none"; state.ui.currentEditingCircleForModal = null; }
+            if (event.target == messageModal) { messageModal.style.display = "none"; }
+            if (event.target == narrativeModal) { narrativeModal.style.display = "none"; }
+            if (event.target == quickHelpModal) { quickHelpModal.style.display = "none"; }
+            if (event.target == confirmClearModal) { confirmClearModal.style.display = "none"; state.ui.isPerformingCriticalOperation = false; }
+        };
+        function showMessage(title, message) { messageModalTitle.textContent = title; messageModalText.textContent = message; messageModal.style.display = "block";}
+        
+        function updateControls() {
+            const selectedCircle = getSelectedCircle();
+            if (selectedCircle) {
+                if (selectedCircle.isSelf) {
+                    selectedAspectControls.classList.add('hidden');
+                    selfControls.classList.remove('hidden');
+                    selfColorPaletteContainer.querySelectorAll('.color-palette-button').forEach(btn => btn.classList.toggle('selected', btn.dataset.color === selectedCircle.color));
+                } else { // An aspect is selected
+                    selfControls.classList.add('hidden');
+                    selectedAspectControls.classList.remove('hidden');
+                    selectedAspectName.textContent = selectedCircle.text.substring(0,20) + (selectedCircle.text.length > 20 ? '...':'');
+                    aspectText.value = selectedCircle.text;
+                    aspectSize.value = selectedCircle.radius;
+                    aspectSizeValue.textContent = selectedCircle.radius;
+                    colorPaletteContainer.querySelectorAll('.color-palette-button').forEach(btn => btn.classList.toggle('selected', btn.dataset.color === selectedCircle.color));
+                    lineTypeButtons.forEach(btn => { const isSelected = btn.dataset.lineType === selectedCircle.connectionToSelf; btn.classList.toggle('bg-blue-500',isSelected); btn.classList.toggle('text-white',isSelected); btn.classList.toggle('bg-slate-200',!isSelected); btn.classList.toggle('text-slate-700',!isSelected);});
+                    document.querySelectorAll('#auraSymbols .symbol-button').forEach(btn => btn.classList.toggle('selected', selectedCircle.aura && btn.dataset.symbolName === selectedCircle.aura.name));
+                    const wf = selectedCircle.waveform || {type:'none', amplitude:10};
+                    waveTypeButtons.forEach(btn => { const isSelected = btn.dataset.waveType === wf.type; btn.classList.toggle('bg-blue-500',isSelected); btn.classList.toggle('text-white',isSelected); btn.classList.toggle('bg-slate-200',!isSelected); btn.classList.toggle('text-slate-700',!isSelected);});
+                    waveAmplitude.value = wf.amplitude;
+                    waveAmplitudeValue.textContent = wf.amplitude;
+                    waveAmplitude.disabled = wf.type === 'none';
+                    document.getElementById('connectionControls').classList.remove('hidden');
+                    
+                    setTimeout(() => {
+                        const controlPanelContent = document.querySelector('.control-panel-content');
+                        if (selectedAspectControls.offsetTop < controlPanelContent.scrollTop || (selectedAspectControls.offsetTop + selectedAspectControls.offsetHeight) > (controlPanelContent.scrollTop + controlPanelContent.clientHeight)) {
+                            controlPanelContent.scrollTo({ top: selectedAspectControls.offsetTop - 20, behavior: 'smooth' });
+                        }
+                    }, 50); 
+                }
+            } else {
+                selectedAspectControls.classList.add('hidden');
+                selfControls.classList.add('hidden');
+            }
+            toggleRingsCheckbox.checked = state.view.showRings;
+            toggleGridCheckbox.checked = state.view.showGrid;
+            undeleteAspectButton.disabled = !state.lastDeletedAspect;
+            updateAspectCount();
+        }
+        function doCirclesOverlap(c1, c2) { if (!c1 || !c2 || c1.id === c2.id) return false; const dist = Math.hypot(c1.x - c2.x, c1.y - c2.y); return dist < (c1.radius + c2.radius); }
+        function checkClusterWarning(movedCircle) {
+            if (state.ui.hasShownClusterWarning) return; 
+            const cluster = new Set(); const queue = [movedCircle]; const visited = new Set([movedCircle.id]);
+            while(queue.length > 0) { const current = queue.shift(); cluster.add(current); for (const other of state.aspects) { if (!visited.has(other.id) && doCirclesOverlap(current, other)) { visited.add(other.id); queue.push(other); } } }
+            if (cluster.size > 3) { showMessage('Note on Clustering', "It looks like you're creating a cluster of several aspects. While this is possible, grouping more than three can make the map cluttered and hard to read."); state.ui.hasShownClusterWarning = true; }
+        }
+        addAspectButton.addEventListener('click', () => { const devicePixelRatio = window.devicePixelRatio||1; const logicalCanvasWidth = canvas.width/devicePixelRatio; const logicalCanvasHeight = canvas.height/devicePixelRatio; let initialX = (logicalCanvasWidth/2 - state.view.panX)/state.view.scale + (Math.random()-0.5)*50/state.view.scale; let initialY = (logicalCanvasHeight/2 - state.view.panY)/state.view.scale + (Math.random()-0.5)*50/state.view.scale; const newAspect = {id:`aspect${state.nextAspectId++}`, text:`Aspect ${state.nextAspectId}`, x:initialX, y:initialY, radius:ASPECT_DEFAULT_RADIUS, color:ASPECT_DEFAULT_COLOR, isSelf:false, connectionToSelf:null, aura:null, waveform:{type:'none',amplitude:10}}; if (state.view.showGrid) { newAspect.x = Math.round(newAspect.x/GRID_SIZE)*GRID_SIZE; newAspect.y = Math.round(newAspect.y/GRID_SIZE)*GRID_SIZE;} state.aspects.push(newAspect); state.selectedCircleId = newAspect.id; updateControls(); draw();});
+        aspectText.addEventListener('input', (e) => { const selectedCircle = getSelectedCircle(); if (selectedCircle && !selectedCircle.isSelf) {selectedCircle.text = e.target.value; selectedAspectName.textContent = selectedCircle.text.substring(0,20) + (selectedCircle.text.length > 20 ? '...':''); draw();}});
+        aspectSize.addEventListener('input', (e) => { const selectedCircle = getSelectedCircle(); if (selectedCircle && !selectedCircle.isSelf) {selectedCircle.radius = parseInt(e.target.value); aspectSizeValue.textContent = selectedCircle.radius; draw();}});
+        
+        function populateColorPalette(container, forSelf=false) { 
+            Object.values(FEMS_COLORS).forEach(color => { 
+                const button=document.createElement('button'); button.classList.add('color-palette-button'); button.style.backgroundColor=color.value; button.dataset.color=color.value; 
+                const tooltipSpan=document.createElement('span'); tooltipSpan.classList.add('tooltiptext'); tooltipSpan.textContent=`${color.name}: ${color.tooltip}`; 
+                const wrapper=document.createElement('div'); wrapper.classList.add('tooltip'); wrapper.appendChild(button); wrapper.appendChild(tooltipSpan); 
+                button.addEventListener('click', ()=>{ const selectedCircle = getSelectedCircle(); if(selectedCircle){if((forSelf && selectedCircle.isSelf) || (!forSelf && !selectedCircle.isSelf)) selectedCircle.color=color.value; updateControls(); draw();}}); container.appendChild(wrapper);
+            });
+        }
+        populateColorPalette(colorPaletteContainer, false); populateColorPalette(selfColorPaletteContainer, true);
+        
+        lineTypeButtons.forEach(button => button.addEventListener('click', () => { const selectedCircle = getSelectedCircle(); if (selectedCircle && !selectedCircle.isSelf) {selectedCircle.connectionToSelf = button.dataset.lineType==='none' ? null : button.dataset.lineType; updateControls(); draw();}}));
+        Object.values(AURA_SYMBOLS).forEach(aura => { const button=document.createElement('button'); button.classList.add('symbol-button','hover:bg-slate-200'); button.textContent=aura.symbol; button.dataset.symbolName=aura.name; const tooltipSpan=document.createElement('span'); tooltipSpan.classList.add('tooltiptext'); tooltipSpan.textContent=`${aura.name}: ${aura.tooltip}`; const wrapper=document.createElement('div'); wrapper.classList.add('tooltip'); wrapper.appendChild(button); wrapper.appendChild(tooltipSpan); button.addEventListener('click', ()=>{ const selectedCircle = getSelectedCircle(); if(selectedCircle){if(selectedCircle.aura && selectedCircle.aura.name===aura.name) selectedCircle.aura=null; else selectedCircle.aura = aura.name==='None' ? null:aura; updateControls(); draw();}}); auraSymbolsContainer.appendChild(wrapper);});
+        waveTypeButtons.forEach(button => button.addEventListener('click', () => { const selectedCircle = getSelectedCircle(); if (selectedCircle && !selectedCircle.isSelf) { if (!selectedCircle.waveform) selectedCircle.waveform = {type:'none',amplitude:10}; selectedCircle.waveform.type = button.dataset.waveType; waveAmplitude.disabled = selectedCircle.waveform.type==='none'; updateControls(); draw();}}));
+        waveAmplitude.addEventListener('input', (e) => { const selectedCircle = getSelectedCircle(); if (selectedCircle && !selectedCircle.isSelf && selectedCircle.waveform) {selectedCircle.waveform.amplitude = parseInt(e.target.value); waveAmplitudeValue.textContent = selectedCircle.waveform.amplitude; draw();}});
+        
+        bringToFrontButton.addEventListener('click', () => { const selectedCircle = getSelectedCircle(); if (selectedCircle && !selectedCircle.isSelf) { const index = state.aspects.findIndex(a => a.id === selectedCircle.id); if (index > -1 && index < state.aspects.length - 1) { const [aspectToMove] = state.aspects.splice(index, 1); state.aspects.push(aspectToMove); draw(); } } });
+        sendToBackButton.addEventListener('click', () => { const selectedCircle = getSelectedCircle(); if (selectedCircle && !selectedCircle.isSelf) { const index = state.aspects.findIndex(a => a.id === selectedCircle.id); if (index > 0) { const [aspectToMove] = state.aspects.splice(index, 1); state.aspects.unshift(aspectToMove); draw(); } } });
+        clearMapButton.addEventListener('click', () => { state.ui.isPerformingCriticalOperation = true; confirmClearModal.style.display = "block"; });
+        confirmClearOkButton.onclick = () => { try { state.aspects = []; state.lastDeletedAspect = null; state.nextAspectId = 0; state.selectedCircleId = null; resetViewAndSelf(true); state.ui.hasShownSelfRenameWarning = false; state.ui.hasShownClusterWarning = false; updateControls(); drawAll(); } finally { confirmClearModal.style.display = "none"; state.ui.isPerformingCriticalOperation = false; } };
+        confirmClearCancelButton.onclick = () => { confirmClearModal.style.display = "none"; state.ui.isPerformingCriticalOperation = false; };
+        deleteAspectButton.addEventListener('click', () => { const selectedCircle = getSelectedCircle(); if (selectedCircle && !selectedCircle.isSelf) { state.lastDeletedAspect = {...selectedCircle}; state.aspects = state.aspects.filter(aspect => aspect.id !== selectedCircle.id); state.selectedCircleId = null; updateControls(); draw();}});
+        undeleteAspectButton.addEventListener('click', () => { if (state.lastDeletedAspect) { state.aspects.push(state.lastDeletedAspect); state.selectedCircleId = state.lastDeletedAspect.id; state.lastDeletedAspect = null; updateControls(); draw();}});
+        toggleRingsCheckbox.addEventListener('change', (e) => { state.view.showRings = e.target.checked; drawAll();});
+        toggleGridCheckbox.addEventListener('change', (e) => { state.view.showGrid = e.target.checked; drawAll();});
+        
+        function getEmotionalToneNameHelper(colorValue){ const foundColor = Object.values(FEMS_COLORS).find(c => c.value === colorValue); return foundColor ? foundColor.name.split(',')[0].toLowerCase() : "an undefined tone";}
+        function getIntensityDescriptor(radius){ if (radius < (ASPECT_DEFAULT_RADIUS*0.85)) return "small"; if (radius > (ASPECT_DEFAULT_RADIUS*1.65)) return "big"; return "average";}
+        function getConnectionStrengthDescriptor(connectionType){ if (connectionType === 'solid') return "strong"; if (connectionType === 'dashed') return "weak"; return "";}
+        function getDistanceDescriptor(aspect, selfNode){ const distance = Math.hypot(aspect.x-selfNode.x, aspect.y-selfNode.y); if (distance < CONCENTRIC_RING_RADII[0]) return "close"; if (distance < CONCENTRIC_RING_RADII[1]) return "near"; return "distant";}
+        function getResonanceType(waveformType){ if (waveformType === 'sine') return "resonance"; if (waveformType === 'sawtooth') return "dissonance"; return "";}
+        function getResonanceIntensity(amplitude){ if (amplitude < 13) return "soft"; if (amplitude < 22) return "amplified"; return "loud";}
+        function generateNarrativeForAspect(aspect, selfNode) { let parts=[]; parts.push(`"${aspect.text}" feels ${getEmotionalToneNameHelper(aspect.color)} and ${getIntensityDescriptor(aspect.radius)}`); const connectionStrength = getConnectionStrengthDescriptor(aspect.connectionToSelf); if(connectionStrength) parts.push(`its connection ${connectionStrength} and ${getDistanceDescriptor(aspect, selfNode)}`); else parts.push("it has no direct connection to SELF"); if (aspect.aura && aspect.aura.name !== 'None') parts.push(`${aspect.aura.name.toLowerCase()}`); if (aspect.waveform && aspect.waveform.type !== 'none') parts.push(`with ${getResonanceIntensity(aspect.waveform.amplitude)} ${getResonanceType(aspect.waveform.type)}`); return parts.join(', ') + ".";}
+        generateNarrativeButton.addEventListener('click', () => { if (state.aspects.length === 0) { showMessage("No Aspects", "Add some aspects to the map first."); return;} const allNarratives = state.aspects.map(aspect => generateNarrativeForAspect(aspect, state.selfCircle)).join('\n\n'); narrativeModalTextarea.value = allNarratives; narrativeModal.style.display = "block";});
+        
+        saveMapButton.addEventListener('click', () => { const mapData = {selfCircle: state.selfCircle, aspects: state.aspects, nextAspectId: state.nextAspectId, viewOptions:{showRings: state.view.showRings, showGrid: state.view.showGrid}, transform:{panX: state.view.panX, panY: state.view.panY, scale: state.view.scale}}; const jsonData = JSON.stringify(mapData, null, 2); const blob = new Blob([jsonData],{type:'application/json'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='fems-map.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showMessage('Map Saved', 'Your map data has been prepared for download.');});
+        loadMapInput.addEventListener('change', (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const mapData = JSON.parse(e.target.result); if (mapData.selfCircle && mapData.aspects && typeof mapData.nextAspectId !== 'undefined') { state.selfCircle = mapData.selfCircle; state.aspects = mapData.aspects; state.nextAspectId = mapData.nextAspectId; const vo = mapData.viewOptions||{}; state.view.showRings = vo.showRings===undefined ? true : vo.showRings; state.view.showGrid = vo.showGrid===undefined ? false : vo.showGrid; const tr = mapData.transform||{}; state.view.panX = tr.panX||0; state.view.panY = tr.panY||0; state.view.scale = tr.scale||1.0; state.lastDeletedAspect=null; state.selectedCircleId=null; state.ui.hasShownSelfRenameWarning = false; state.ui.hasShownClusterWarning = false; resizeCanvas(); updateControls(); showMessage('Map Loaded', 'Map data has been loaded successfully.');} else showMessage('Load Error', 'Invalid map data file.');} catch (error) { console.error("Error loading map:", error); showMessage('Load Error', 'Could not parse map data.');} finally { loadMapInput.value = '';}}; reader.readAsText(file);});
+        async function dataURLtoBlob(dataurl) { const arr = dataurl.split(','); const mimeMatch = arr[0].match(/:(.*?);/); if (!mimeMatch) { console.error("Invalid data URL: mime type not found"); return null; } const mime = mimeMatch[1]; const bstr = atob(arr[1]); let n = bstr.length; const u8arr = new Uint8Array(n); while (n--) { u8arr[n] = bstr.charCodeAt(n); } return new Blob([u8arr], { type: mime }); }
+        
+        exportPngButton.addEventListener('click', async () => { 
+            const previouslySelectedId=state.selectedCircleId; 
+            state.selectedCircleId=null;
+            
+            // Create a temporary canvas to merge background and foreground
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = canvas.width;
+            exportCanvas.height = canvas.height;
+            const exportCtx = exportCanvas.getContext('2d');
+
+            // Draw background first, then foreground on top
+            exportCtx.drawImage(backgroundCanvas, 0, 0);
+            
+            // We must redraw the main canvas content onto the export canvas
+            // as the main canvas itself is transparent.
+            const tempPanX = state.view.panX; const tempPanY = state.view.panY; const tempScale = state.view.scale;
+            exportCtx.save();
+            exportCtx.translate(tempPanX, tempPanY); 
+            exportCtx.scale(tempScale, tempScale); 
+            drawCircle(state.selfCircle, exportCtx); 
+            state.aspects.forEach(aspect => { if (aspect.connectionToSelf && aspect.connectionToSelf !== 'none') drawLine(aspect, state.selfCircle, aspect.connectionToSelf, exportCtx); }); 
+            state.aspects.forEach(c => drawCircle(c, exportCtx)); 
+            exportCtx.restore();
+
+            const dataURL=exportCanvas.toDataURL('image/png'); 
+            
+            if (window.showSaveFilePicker) { try { const blob = await dataURLtoBlob(dataURL); if (!blob) { showMessage('Export Error', 'Could not convert canvas to Blob.'); state.selectedCircleId=previouslySelectedId; drawAll(); return; } const fileHandle = await window.showSaveFilePicker({ suggestedName: 'fems-map.png', types: [{ description: 'PNG Image', accept: { 'image/png': ['.png'] }, }], }); const writableStream = await fileHandle.createWritable(); await writableStream.write(blob); await writableStream.close(); showMessage('PNG Exported', `Map exported as ${fileHandle.name}.`); } catch (err) { if (err.name !== 'AbortError') { const a = document.createElement('a'); a.href = dataURL; a.download = 'fems-map.png'; a.click(); a.remove(); showMessage('PNG Exported (Fallback)', 'Your map has been prepared for download using a fallback method.'); } else { console.info('PNG export aborted by user.'); } } } else { const a=document.createElement('a'); a.href=dataURL; a.download='fems-map.png'; a.click(); a.remove(); showMessage('PNG Exported', 'Your map has been prepared for download.'); } 
+            state.selectedCircleId=previouslySelectedId;
+            drawAll(); 
+        });
+
+        function escapeXml(unsafe) { return unsafe.replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','\'':'&apos;','"':'&quot;'}[c]));}
+        
+        function addCircleToSvg(circle, elementsArray, tempCtxForMeasure) {
+            // Guard against invalid circle data which could come from a corrupt file load
+            if (!circle || typeof circle.text !== 'string') {
+                console.error("Skipping invalid circle in SVG export:", circle);
+                return;
+            }
+
+            elementsArray.push(`<circle cx="${circle.x}" cy="${circle.y}" r="${circle.radius}" fill="${circle.color}" stroke="#374151" stroke-width="1.5" />`);
+            
+            const textColor = kontrastFarbe(circle.color);
+            const { fontSize: finalFontSizeSvg, lines: svgTextLines } = calculateTextLayout(circle.text, circle.radius, tempCtxForMeasure);
+
+            if (svgTextLines.length > 0) {
+                const lineHeight = finalFontSizeSvg * 1.2; 
+                const totalTextHeight = svgTextLines.length * lineHeight;
+                // Calculate the Y coordinate for the top-most edge of the text block
+                const startY = circle.y - totalTextHeight / 2;
+                
+                // Using dominant-baseline="hanging", the 'y' attribute refers to the top of the text.
+                let textSVG = `<text x="${circle.x}" y="${startY}" font-family="Inter, sans-serif" font-size="${finalFontSizeSvg}" font-weight="bold" text-anchor="middle" dominant-baseline="hanging" fill="${textColor}">`; 
+                svgTextLines.forEach((line, index) => {
+                    // The first line starts at y=startY. Subsequent lines are shifted down by dy.
+                    textSVG += `<tspan x="${circle.x}" dy="${index === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`;
+                });
+                textSVG += `</text>`; 
+                elementsArray.push(textSVG); 
+            }
+
+            if (circle.aura && circle.aura.symbol.trim() !== '') { 
+                const symbolSize = finalFontSizeSvg * 1.5; 
+                elementsArray.push(`<text x="${(circle.x + circle.radius*0.5).toFixed(2)}" y="${(circle.y - circle.radius*0.5).toFixed(2)}" font-family="Inter, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif" font-size="${symbolSize}" text-anchor="middle" dominant-baseline="central">${escapeXml(circle.aura.symbol)}</text>`);
+            } 
+            
+            if (circle.waveform && circle.waveform.type !== 'none') {
+                const {type, amplitude: rawAmplitude} = circle.waveform;
+                const A_MIN_FACTOR = 0.05; const A_MAX_FACTOR = 0.20;
+                let min_visual_amp_svg = circle.radius * A_MIN_FACTOR; let max_visual_amp_svg = circle.radius * A_MAX_FACTOR;
+                min_visual_amp_svg = Math.max(min_visual_amp_svg, 0.5); max_visual_amp_svg = Math.max(max_visual_amp_svg, min_visual_amp_svg);
+                let effectiveAmplitudeSvg;
+                if (min_visual_amp_svg >= max_visual_amp_svg) { effectiveAmplitudeSvg = min_visual_amp_svg; } else { const rawAmplitudeNormalizedSvg = (rawAmplitude - 5) / (30 - 5); effectiveAmplitudeSvg = min_visual_amp_svg + rawAmplitudeNormalizedSvg * (max_visual_amp_svg - min_visual_amp_svg); }
+                effectiveAmplitudeSvg = Math.max(0, effectiveAmplitudeSvg);
+                const waveWidth = circle.radius * 1.0; const waveStartX = circle.x - waveWidth / 2; const waveEndX = circle.x + waveWidth / 2;
+                const marginFromBottomEdgeSvg = circle.radius * 0.1; const waveBaseY = circle.y + circle.radius - effectiveAmplitudeSvg - marginFromBottomEdgeSvg;
+                let pathData = `M ${waveStartX.toFixed(2)} ${waveBaseY.toFixed(2)} `; const waveStrokeColorSvg = kontrastFarbe(circle.color);
+                const sineWaveSteps = Math.max(20, waveWidth / 2); // Control the smoothness of the sine wave
+                if (type==='sine') { 
+                    for (let i=0; i<=sineWaveSteps; i++) {
+                        const pointX = waveStartX + (i/sineWaveSteps) * waveWidth;
+                        const phase = (pointX-waveStartX)/waveWidth * Math.PI*2; 
+                        pathData += `L ${pointX.toFixed(2)} ${(waveBaseY - Math.sin(phase)*effectiveAmplitudeSvg).toFixed(2)} `; 
+                    }
+                } else if (type==='sawtooth') { 
+                    const segments = Math.max(4, Math.floor(waveWidth / 6)); const segmentWidth = waveWidth/segments;
+                    if (segmentWidth > 0 && effectiveAmplitudeSvg > 0) { for (let j=0; j<segments; j++) { pathData += `L ${(waveStartX + j*segmentWidth + segmentWidth/2).toFixed(2)} ${(waveBaseY - effectiveAmplitudeSvg).toFixed(2)} `; pathData += `L ${(waveStartX + (j+1)*segmentWidth).toFixed(2)} ${waveBaseY.toFixed(2)} `; }
+                    } else if (effectiveAmplitudeSvg > 0) { pathData += `L ${circle.x.toFixed(2)} ${(waveBaseY - effectiveAmplitudeSvg).toFixed(2)} L ${circle.x.toFixed(2)} ${waveBaseY.toFixed(2)} `; }
+                } 
+                elementsArray.push(`<path d="${pathData}" stroke="${waveStrokeColorSvg}" stroke-width="1.5" fill="none" />`);
+            }
+        }
+
+        exportSvgButton.addEventListener('click', () => { let minX=state.selfCircle.x-state.selfCircle.radius, minY=state.selfCircle.y-state.selfCircle.radius, maxX=state.selfCircle.x+state.selfCircle.radius, maxY=state.selfCircle.y+state.selfCircle.radius; state.aspects.forEach(a => {minX=Math.min(minX, a.x-a.radius); minY=Math.min(minY, a.y-a.radius); maxX=Math.max(maxX, a.x+a.radius); maxY=Math.max(maxY, a.y+a.radius);}); const padding=50; minX-=padding; minY-=padding; maxX+=padding; maxY+=padding; const worldWidth = maxX-minX; const worldHeight = maxY-minY; let svgElements=[]; const tempCtx=document.createElement('canvas').getContext('2d'); svgElements.push(`<g transform="translate(${-minX}, ${-minY})">`); if (state.view.showGrid) { let gridLinesSvg=''; for (let x=Math.floor(minX/GRID_SIZE)*GRID_SIZE; x<=maxX; x+=GRID_SIZE) gridLinesSvg += `<line x1="${x}" y1="${minY}" x2="${x}" y2="${maxY}" stroke="rgba(0,0,0,0.1)" stroke-width="0.5" />`; for (let y=Math.floor(minY/GRID_SIZE)*GRID_SIZE; y<=maxY; y+=GRID_SIZE) gridLinesSvg += `<line x1="${minX}" y1="${y}" x2="${maxX}" y2="${y}" stroke="rgba(0,0,0,0.1)" stroke-width="0.5" />`; svgElements.push(gridLinesSvg);} if (state.view.showRings && state.selfCircle) { let ringsSvg=''; CONCENTRIC_RING_RADII.forEach(radius => ringsSvg += `<circle cx="${state.selfCircle.x}" cy="${state.selfCircle.y}" r="${radius}" fill="none" stroke="rgba(100,100,100,0.2)" stroke-width="1" stroke-dasharray="5,5" />`); svgElements.push(ringsSvg);} addCircleToSvg(state.selfCircle, svgElements, tempCtx); state.aspects.forEach(aspect => { if (aspect.connectionToSelf && aspect.connectionToSelf !== 'none') { const angle = Math.atan2(state.selfCircle.y-aspect.y, state.selfCircle.x-aspect.x); const startX = aspect.x+aspect.radius*Math.cos(angle); const startY = aspect.y+aspect.radius*Math.sin(angle); const endX = state.selfCircle.x-state.selfCircle.radius*Math.cos(angle); const endY = state.selfCircle.y-state.selfCircle.radius*Math.sin(angle); const dashArray = aspect.connectionToSelf==='dashed' ? 'stroke-dasharray="10,5"':''; svgElements.push(`<line x1="${startX.toFixed(2)}" y1="${startY.toFixed(2)}" x2="${endX.toFixed(2)}" y2="${endY.toFixed(2)}" stroke="#374151" stroke-width="2" ${dashArray} />`);}}); state.aspects.forEach(aspect => addCircleToSvg(aspect, svgElements, tempCtx)); svgElements.push(`</g>`); const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${worldWidth}" height="${worldHeight}" viewBox="0 0 ${worldWidth} ${worldHeight}" style="background-color: #ffffff;">${svgElements.join('')}</svg>`; const svgBlob = new Blob([svgContent], {type:'image/svg+xml;charset=utf-8'}); const svgUrl = URL.createObjectURL(svgBlob); const a=document.createElement('a'); a.href=svgUrl; a.download='fems-map.svg'; a.click(); a.remove(); URL.revokeObjectURL(svgUrl); showMessage('SVG Exported', 'Your map has been prepared for download.');});
+        
+        // --- Event Listeners ---
+        canvas.addEventListener('mousedown', (e) => { e.preventDefault(); handleMouseDown(e); });
+        canvas.addEventListener('mousemove', (e) => { e.preventDefault(); handleMouseMove(e); });
+        canvas.addEventListener('mouseup', (e) => { handleMouseUp(e); });
+        canvas.addEventListener('wheel', handleWheel, {passive:false});
+        canvas.addEventListener('dblclick', (e) => { e.preventDefault(); handleDoubleClick(e);});
+        
+        function handleTouchStart(e) { e.preventDefault(); if (e.touches.length === 2) { state.ui.isPinching = true; state.view.isPanning = false; state.draggingCircleId = null; state.ui.initialPinchDistance = Math.hypot( e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY ); } else if (e.touches.length === 1) { state.ui.isPinching = false; handleMouseDown(e); } }
+        function handleTouchMove(e) { e.preventDefault(); if (state.ui.isPinching && e.touches.length === 2) { const currentPinchDistance = Math.hypot( e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY ); if (state.ui.initialPinchDistance > 0) { const zoomFactor = currentPinchDistance / state.ui.initialPinchDistance; const newScaleCandidate = state.view.scale * zoomFactor; const newScale = Math.min(Math.max(newScaleCandidate, MIN_ZOOM), MAX_ZOOM); const midX_screen = (e.touches[0].clientX + e.touches[1].clientX) / 2; const midY_screen = (e.touches[0].clientY + e.touches[1].clientY) / 2; const rect = canvas.getBoundingClientRect(); const mouseXOnCanvas = midX_screen - rect.left; const mouseYOnCanvas = midY_screen - rect.top; state.view.panX = mouseXOnCanvas - (mouseXOnCanvas - state.view.panX) * (newScale / state.view.scale); state.view.panY = mouseYOnCanvas - (mouseYOnCanvas - state.view.panY) * (newScale / state.view.scale); state.view.scale = newScale; state.ui.initialPinchDistance = currentPinchDistance; } drawAll(); } else if (!state.ui.isPinching && e.touches.length === 1) { handleMouseMove(e); } }
+        function handleTouchEnd(e) { const wasPinching = state.ui.isPinching; if (state.ui.isPinching) { if (e.touches.length < 2) { state.ui.isPinching = false; state.ui.initialPinchDistance = 0; } } if (!wasPinching || e.touches.length === 0) { const relevantTouch = e.changedTouches[0] || e; handleMouseUp(relevantTouch); const currentTime = new Date().getTime(); const tapLength = currentTime - state.ui.lastTapTime; if (tapLength < 300 && tapLength > 0 && e.target === canvas) { handleDoubleClick(relevantTouch); } state.ui.lastTapTime = currentTime; } draw(); }
+        canvas.addEventListener('touchstart', handleTouchStart, {passive:false});
+        canvas.addEventListener('touchmove', handleTouchMove, {passive:false});
+        canvas.addEventListener('touchend', handleTouchEnd, {passive:false});
+        canvas.addEventListener('touchcancel', handleTouchEnd, {passive:false});
+        
+        window.addEventListener('beforeunload', function (e) {
+            if (state.ui.isPerformingCriticalOperation) return undefined;
+            const hasChanges = state.aspects.length > 0 || (state.selfCircle && (state.selfCircle.text !== SELF_DEFAULT_TEXT || state.selfCircle.color !== SELF_DEFAULT_COLOR));
+            if (hasChanges) {
+                const confirmationMessage = 'It looks like you have been editing something. If you leave before saving, your changes will be lost.';
+                (e || window.event).returnValue = confirmationMessage;
+                return confirmationMessage;
+            }
+        });
+        function isUserTyping() { const activeElement = document.activeElement; if (!activeElement) return false; const tagName = activeElement.tagName.toLowerCase(); return tagName === 'input' || tagName === 'textarea' || activeElement.id === 'modalTextInput' || activeElement.isContentEditable; }
+        window.addEventListener('keydown', function(event) {
+            let shortcutHandled = false; const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+            if (isCtrlOrCmd) { switch (event.key.toLowerCase()) { case 's': saveMapButton.click(); shortcutHandled = true; break; case 'o': loadMapInput.click(); shortcutHandled = true; break; case 'z': if (!isUserTyping() && !undeleteAspectButton.disabled) { undeleteAspectButton.click(); shortcutHandled = true; } break; } }
+            if (shortcutHandled) { event.preventDefault(); return; }
+            if (isUserTyping() || textInputModal.style.display === "block" || messageModal.style.display === "block" || narrativeModal.style.display === "block" || quickHelpModal.style.display === "block" || confirmClearModal.style.display === "block") { return; }
+            const selectedCircle = getSelectedCircle();
+            switch (event.key.toLowerCase()) {
+                case 'a': addAspectButton.click(); shortcutHandled = true; break;
+                case 'delete': case 'backspace': if (selectedCircle && !selectedCircle.isSelf) { deleteAspectButton.click(); shortcutHandled = true; } break;
+                case '=': case '+': zoomInButton.click(); shortcutHandled = true; break;
+                case '-': zoomOutButton.click(); shortcutHandled = true; break;
+                case '0': resetViewButton.click(); shortcutHandled = true; break;
+                case 'c': centerOnSelfButton.click(); shortcutHandled = true; break;
+                case 'g': toggleGridCheckbox.checked = !toggleGridCheckbox.checked; state.view.showGrid = toggleGridCheckbox.checked; drawAll(); updateControls(); shortcutHandled = true; break;
+                case 'r': toggleRingsCheckbox.checked = !toggleRingsCheckbox.checked; state.view.showRings = toggleRingsCheckbox.checked; drawAll(); updateControls(); shortcutHandled = true; break;
+                case '?': case '/': if (event.shiftKey || event.key === '?') { quickHelpButton.click(); shortcutHandled = true; } break;
+            }
+            if (shortcutHandled) { event.preventDefault(); }
+        });
+        
+        function populateVocabulary() { Object.keys(STARTER_VOCABULARY).forEach(category => { const container = document.getElementById(`vocab-${category}`); if (container) { STARTER_VOCABULARY[category].forEach(term => { const button = document.createElement('button'); button.className = 'vocabulary-term'; button.textContent = term; button.dataset.term = term; container.appendChild(button); }); } }); }
+        toggleVocabularyButton.addEventListener('click', () => { const isHidden = starterVocabularyContainer.classList.toggle('hidden'); toggleVocabularyButton.textContent = isHidden ? 'Show Starter Vocabulary' : 'Hide Starter Vocabulary'; });
+        starterVocabularyContainer.addEventListener('click', (e) => {
+            if (e.target && e.target.classList.contains('vocabulary-term')) {
+                const term = e.target.dataset.term;
+                const selectedCircle = getSelectedCircle();
+                if (selectedCircle && !selectedCircle.isSelf) {
+                    selectedCircle.text = term;
+                    updateControls();
+                    draw();
+                } else {
+                    const devicePixelRatio = window.devicePixelRatio || 1; const logicalCanvasWidth = canvas.width / devicePixelRatio;
+                    let initialX = (logicalCanvasWidth / 2 - state.view.panX) / state.view.scale + (Math.random() - 0.5) * 50 / state.view.scale;
+                    let initialY = state.selfCircle.y + state.selfCircle.radius + ASPECT_DEFAULT_RADIUS + 20 + (Math.random() - 0.5) * 50;
+                    const newAspect = { id: `aspect${state.nextAspectId++}`, text: term, x: initialX, y: initialY, radius: ASPECT_DEFAULT_RADIUS, color: ASPECT_DEFAULT_COLOR, isSelf: false, connectionToSelf: null, aura: null, waveform: { type: 'none', amplitude: 10 } };
+                    if (state.view.showGrid) { newAspect.x = Math.round(newAspect.x / GRID_SIZE) * GRID_SIZE; newAspect.y = Math.round(newAspect.y / GRID_SIZE) * GRID_SIZE; }
+                    state.aspects.push(newAspect);
+                    state.selectedCircleId = newAspect.id;
+                    updateControls();
+                    draw();
+                }
+            }
+        });
+
+        // --- Initialisation ---
+        window.addEventListener('resize', resizeCanvas);
+        setCopyright();
+        populateVocabulary();
+        toggleRingsCheckbox.checked = state.view.showRings;
+        toggleGridCheckbox.checked = state.view.showGrid;
+        undeleteAspectButton.disabled = !state.lastDeletedAspect;
+        updateAspectCount();
+        
+        document.fonts.ready.then(() => {
+            resizeCanvas();
+        }).catch((e) => {
+            console.warn("Font loading error, resizing canvas immediately.", e);
+            resizeCanvas();
+        });
+
+        updateControls();
+        canvas.setAttribute('tabindex', '-1');
+        
+        // Ensure the canvas has focus once the page is fully loaded to enable keyboard shortcuts immediately.
+        window.onload = () => {
+            canvas.focus();
+        };
+    </script>
+</body>
+</html>
