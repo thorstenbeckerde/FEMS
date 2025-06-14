@@ -252,7 +252,7 @@
                     For all other uses, including commercial, academic, or therapeutic, a license is required. Please contact me at <a href="mailto:hello@thorstenbecker.de" class="text-indigo-500 hover:text-indigo-700">hello@thorstenbecker.de</a> to inquire about licensing.
                 </p>
                 <a href="https://ko-fi.com/thorstenbecker" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition duration-150 ease-in-out">
-                    <span class="font-bold mr-2">$</span>
+                    <span class="font-bold mr-2 text-red-300">&#9829;</span>
                     <span>Donate</span>
                 </a>
             </div>
@@ -331,6 +331,9 @@
         <a href="https://ko-fi.com/thorstenbecker" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">donating to support its development</a>.
         For all other uses, including commercial, academic, or therapeutic, a license is required. Please contact
         <a href="mailto:hello@thorstenbecker.de" class="text-indigo-500 hover:text-indigo-700">hello@thorstenbecker.de</a> to inquire.
+    </p>
+    <p class="pt-3 mt-3 border-t border-slate-200 text-center text-xs text-slate-500">
+        &copy; <span id="help-modal-copyright-year"></span> Thorsten Becker, <a href="https://www.thorstenbecker.de" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">www.thorstenbecker.de</a>
     </p>
 </div><button id="quickHelpModalCloseButton" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow">OK</button></div></div>
 
@@ -462,7 +465,7 @@
             if (!state.draggingCircleId) return null;
             return state.aspects.find(a => a.id === state.draggingCircleId);
         };
-        function setCopyright() { const currentYear = new Date().getFullYear(); copyrightNoticeDiv.innerHTML = `&copy; ${currentYear} Thorsten Becker. <a href="https://www.linkedin.com/in/thorsten-becker-de/" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">Connect on Linked</a>`;}
+        function setCopyright() { const currentYear = new Date().getFullYear(); copyrightNoticeDiv.innerHTML = `&copy; ${currentYear} Thorsten Becker, <a href="https://www.thorstenbecker.de" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">www.thorstenbecker.de</a>`;}
         
         // --- Core Application Logic ---
         function resetSelfCircleToDefaults() {
@@ -987,6 +990,9 @@
         window.addEventListener('resize', resizeCanvas);
         setCopyright();
         populateVocabulary();
+        if(document.getElementById('help-modal-copyright-year')) {
+            document.getElementById('help-modal-copyright-year').textContent = new Date().getFullYear();
+        }
         toggleRingsCheckbox.checked = state.view.showRings;
         toggleGridCheckbox.checked = state.view.showGrid;
         undeleteAspectButton.disabled = !state.lastDeletedAspect;
