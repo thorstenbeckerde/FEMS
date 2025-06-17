@@ -77,6 +77,9 @@
             cursor: grab;
             z-index: 10;
         }
+        #femsCanvas:focus {
+            outline: none;
+        }
         #femsCanvas.grabbing { cursor: grabbing; }
 
         .control-panel {
@@ -170,6 +173,26 @@
         .line-type-button.active, .wave-type-button.active {
             background-color: var(--accent-blue);
             color: white;
+        }
+
+        #loadMapInput::file-selector-button {
+            font-family: 'Inter', sans-serif;
+            padding: 0.5rem 1rem;
+            margin-right: 1rem;
+            border-radius: 0.75rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s ease-in-out;
+            border: none;
+            background-color: var(--accent-purple);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0,0,0,0.04);
+            cursor: pointer;
+        }
+
+        #loadMapInput::file-selector-button:hover {
+            background-color: var(--accent-purple-hover);
+            transform: translateY(-1px);
         }
 
     </style>
@@ -268,7 +291,7 @@
                 <button id="saveMapButton" class="w-full btn btn-success soft-shadow">Save Map (JSON)</button>
                 <div>
                     <label for="loadMapInput" class="block text-sm font-medium mb-1">Load Map (JSON):</label>
-                    <input type="file" id="loadMapInput" accept=".json" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer">
+                    <input type="file" id="loadMapInput" accept=".json" class="w-full text-sm text-secondary cursor-pointer">
                 </div>
                 <h2 class="text-lg font-medium mt-3">Export Map</h2>
                 <button id="exportPngButton" class="w-full btn btn-special-teal soft-shadow">Export as PNG</button>
