@@ -5,13 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuzzy Emotion Mapping System (FEMS)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
+        /* --- Cozy Redesign Custom Styles --- */
+        :root {
+            --bg-main: #FDFBF6;
+            --bg-panel: #F5F3EF;
+            --text-primary: #5a524c;
+            --text-secondary: #8a817a;
+            --text-heading: #4a443f;
+            --border-color: #e0dcd5;
+            --accent-blue: #8EAFBC;
+            --accent-blue-hover: #7c9aa7;
+            --accent-green: #9DBA7B;
+            --accent-green-hover: #8ca56a;
+            --accent-red: #D48C7A;
+            --accent-red-hover: #c37b69;
+            --accent-amber: #EAC488;
+            --accent-amber-hover: #d9b377;
+            --accent-purple: #A08CAF;
+            --accent-purple-hover: #907c9e;
+            --accent-teal: #7aabab;
+            --accent-teal-hover: #699a9a;
+            --accent-sky: #a3c4d2;
+            --accent-sky-hover: #91b3c1;
+            --accent-fuchsia: #c8a2c8;
+            --accent-fuchsia-hover: #b791b7;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
             overscroll-behavior: none;
+            /* Subtle texture */
+            background-image: url('data:image/svg+xml,%3Csvg width="6" height="6" viewBox="0 0 6 6" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%23e0dcd5" fill-opacity="0.2" fill-rule="evenodd"%3E%3Cpath d="M5 0h1L0 6V5zM6 5v1H5z"/%3E%3C/g%3E%3C/svg%3E');
         }
+
+        h1, h2, h3, h4 {
+            font-family: 'Lora', serif;
+            color: var(--text-heading);
+        }
+
         .canvas-container {
             position: relative;
             width: 100%;
@@ -20,334 +58,260 @@
             justify-content: center;
             align-items: center;
         }
+
         canvas {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             touch-action: none;
-            border-radius: 0.5rem;
+            border-radius: 1rem; /* Softer radius */
         }
+        
+        #backgroundCanvas {
+             background-color: var(--bg-main);
+             background-image: url('data:image/svg+xml,%3Csvg width="6" height="6" viewBox="0 0 6 6" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%23e0dcd5" fill-opacity="0.4" fill-rule="evenodd"%3E%3Cpath d="M5 0h1L0 6V5zM6 5v1H5z"/%3E%3C/g%3E%3C/svg%3E');
+        }
+
         #femsCanvas {
             cursor: grab;
             z-index: 10;
         }
-        #femsCanvas:focus {
-            outline: none;
-        }
-        #femsCanvas.grabbing {
-            cursor: grabbing;
-        }
+        #femsCanvas.grabbing { cursor: grabbing; }
+
         .control-panel {
+            background-color: var(--bg-panel);
             max-height: 90vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            border-left: 1px solid var(--border-color);
+            box-shadow: -5px 0 25px rgba(0,0,0,0.05);
         }
+
         .control-panel-content {
             flex-grow: 1;
             overflow-y: auto;
             padding-bottom: 1rem;
         }
         .control-panel-content::-webkit-scrollbar { width: 8px; }
-        .control-panel-content::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-        .control-panel-content::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
-        .control-panel-content::-webkit-scrollbar-thumb:hover { background: #555; }
-        .color-palette-button { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; }
-        .color-palette-button.selected { border-color: #000; box-shadow: 0 0 0 2px white, 0 0 0 4px #000; }
+        .control-panel-content::-webkit-scrollbar-track { background: transparent; }
+        .control-panel-content::-webkit-scrollbar-thumb { background: #c5bfb8; border-radius: 10px; }
+        .control-panel-content::-webkit-scrollbar-thumb:hover { background: #afa69c; }
+
+        .soft-shadow {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .soft-shadow-xl {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.07), 0 3px 8px rgba(0,0,0,0.05);
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.75rem; /* Softer radius */
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            border: 1px solid transparent;
+        }
+        .btn-primary { background-color: var(--accent-blue); color: white; border-color: var(--accent-blue-hover); }
+        .btn-primary:hover { background-color: var(--accent-blue-hover); transform: translateY(-1px); }
+        .btn-success { background-color: var(--accent-green); color: white; border-color: var(--accent-green-hover); }
+        .btn-success:hover { background-color: var(--accent-green-hover); transform: translateY(-1px); }
+        .btn-danger { background-color: var(--accent-red); color: white; border-color: var(--accent-red-hover); }
+        .btn-danger:hover { background-color: var(--accent-red-hover); transform: translateY(-1px); }
+        .btn-warning { background-color: var(--accent-amber); color: white; border-color: var(--accent-amber-hover); }
+        .btn-warning:hover { background-color: var(--accent-amber-hover); transform: translateY(-1px); }
+        .btn-secondary { background-color: #e0dcd5; color: var(--text-primary); }
+        .btn-secondary:hover { background-color: #d4cec7; }
+        .btn-link { color: var(--accent-blue); }
+        .btn-link:hover { color: var(--accent-blue-hover); text-decoration: underline; }
+        
+        .btn-special-indigo { background-color: var(--accent-purple); color: white; border-color: var(--accent-purple-hover); }
+        .btn-special-indigo:hover { background-color: var(--accent-purple-hover); transform: translateY(-1px); }
+        .btn-special-sky { background-color: var(--accent-sky); color: white; border-color: var(--accent-sky-hover); }
+        .btn-special-sky:hover { background-color: var(--accent-sky-hover); transform: translateY(-1px); }
+        .btn-special-teal { background-color: var(--accent-teal); color: white; border-color: var(--accent-teal-hover); }
+        .btn-special-teal:hover { background-color: var(--accent-teal-hover); transform: translateY(-1px); }
+        .btn-special-purple { background-color: var(--accent-purple); color: white; border-color: var(--accent-purple-hover); }
+        .btn-special-purple:hover { background-color: var(--accent-purple-hover); transform: translateY(-1px); }
+        .btn-special-fuchsia { background-color: var(--accent-fuchsia); color: white; border-color: var(--accent-fuchsia-hover); }
+        .btn-special-fuchsia:hover { background-color: var(--accent-fuchsia-hover); transform: translateY(-1px); }
+
+        .color-palette-button { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+        .color-palette-button.selected { border-color: var(--text-heading); box-shadow: 0 0 0 2px var(--bg-panel), 0 0 0 4px var(--text-heading); transform: scale(1.1); }
+        
         .symbol-button { font-size: 1.25rem; padding: 0.25rem; border-radius: 0.25rem; cursor: pointer; transition: background-color 0.2s; }
-        .symbol-button.selected { background-color: #cbd5e1; }
+        .symbol-button.selected { background-color: #dacec4; }
+
         .tooltip { position: relative; display: inline-block; }
-        .tooltip .tooltiptext { visibility: hidden; width: 120px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 10; bottom: 125%; left: 50%; margin-left: -60px; opacity: 0; transition: opacity 0.3s; }
-        .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; }
+        .tooltip .tooltiptext { visibility: hidden; width: 140px; background-color: #5a524c; color: #fff; text-align: center; border-radius: 8px; padding: 5px 0; position: absolute; z-index: 10; bottom: 125%; left: 50%; margin-left: -70px; opacity: 0; transition: opacity 0.3s; font-family: 'Inter', sans-serif; font-size: 0.75rem;}
+        .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #5a524c transparent transparent transparent; }
         .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
-        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
-        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .modal-content textarea#narrativeModalTextarea { width: 100%; min-height: 200px; border: 1px solid #cbd5e1; border-radius: 0.375rem; padding: 0.5rem; font-family: monospace; font-size: 0.875rem; }
-        .help-modal-content { max-height: 60vh; overflow-y: auto; text-align: left; }
-        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
-        .close-button:hover, .close-button:focus { color: black; text-decoration: none; cursor: pointer; }
-        input[type="file"] { border: 1px solid #cbd5e1; padding: 0.5rem; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); }
-        input[type="file"]::file-selector-button { margin-right: 0.5rem; border: none; background: #6366f1; padding: 0.5rem 0.75rem; border-radius: 0.375rem; color: white; cursor: pointer; transition: background-color .15s ease-in-out; }
-        input[type="file"]::file-selector-button:hover { background: #4f46e5; }
-        .label-cbx { user-select: none; cursor: pointer; margin-bottom: 0; display: flex; align-items: center; }
-        .label-cbx input:checked + .checkbox { border-color: #6366f1; }
-        .label-cbx input:checked + .checkbox svg path { fill: #6366f1; }
-        .label-cbx .checkbox { position: relative; top: 2px; float: left; margin-right: 8px; width: 20px; height: 20px; border: 2px solid #d1d5db; border-radius: 3px; }
-        .label-cbx .checkbox svg { position: absolute; top: -2px; left: -2px; }
-        .label-cbx .checkbox svg path { fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 71px; stroke-dashoffset: 71px; transition: all .3s ease; }
-        .label-cbx > span { pointer-events: none; line-height: 1.2; }
-        .control-panel-footer { padding: 0.75rem 1rem; border-top: 1px solid #e5e7eb; text-align: center; font-size: 0.75rem; color: #6b7280; flex-shrink: 0; }
+
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(74, 68, 63, 0.4); }
+        .modal-content { background-color: var(--bg-panel); margin: 10% auto; padding: 24px; border: 1px solid var(--border-color); width: 80%; max-width: 600px; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+
         .vocabulary-term {
-            background-color: #f1f5f9;
-            border: 1px solid #e2e8f0;
+            background-color: #edeae6;
+            border: 1px solid #dcd7d0;
             padding: 0.25rem 0.6rem;
-            border-radius: 0.375rem;
+            border-radius: 9999px; /* pill shape */
             font-size: 0.8rem;
-            color: #334155;
+            color: #6b635d;
             cursor: pointer;
-            transition: background-color 0.2s, border-color 0.2s;
-            text-align: left;
+            transition: all 0.2s;
         }
         .vocabulary-term:hover {
-            background-color: #e0e7ff;
-            border-color: #c7d2fe;
+            background-color: #dacec4;
+            border-color: #c5bfb8;
+            transform: translateY(-1px);
         }
+        
+        .line-type-button.active, .wave-type-button.active {
+            background-color: var(--accent-blue);
+            color: white;
+        }
+
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 flex flex-col md:flex-row h-screen overflow-hidden">
+<body class="flex flex-col md:flex-row h-screen overflow-hidden">
 
-    <div class="control-panel h-[40vh] md:h-auto w-full md:w-80 lg:w-96 bg-white shadow-lg order-2 md:order-1">
+    <!-- Control Panel -->
+    <div class="control-panel h-[40vh] md:h-auto w-full md:w-80 lg:w-96 order-2 md:order-1">
         <div class="control-panel-content p-4 space-y-4 overflow-x-hidden">
             
-            <div class="flex justify-between items-center">
-                <h1 class="text-2xl font-bold text-slate-700">Fuzzy Emotion Mapping System</h1>
-                <p class="text-xs text-slate-500">Aspects: <span id="aspectCountDisplay">0</span></p>
+            <div class="flex justify-between items-center px-2">
+                <h1 class="text-2xl font-semibold">Fuzzy Emotion Map</h1>
+                <p class="text-xs text-gray-500">Aspects: <span id="aspectCountDisplay">0</span></p>
             </div>
 
-            <div class="pt-4 border-t border-slate-200 space-y-3">
-                <h2 class="text-lg font-semibold text-slate-600">View Options</h2>
+            <!-- View Options -->
+            <div class="pt-4 border-t border-slate-200 space-y-3 px-2">
+                <h2 class="text-lg font-medium">View Options</h2>
                 <div class="flex space-x-2">
-                    <button id="zoomOutButton" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-1 px-3 rounded-md text-lg shadow">-</button>
-                    <button id="zoomInButton" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-1 px-3 rounded-md text-lg shadow">+</button>
+                    <button id="zoomOutButton" class="flex-1 btn btn-secondary soft-shadow text-lg">-</button>
+                    <button id="zoomInButton" class="flex-1 btn btn-secondary soft-shadow text-lg">+</button>
                 </div>
-                 <button id="centerOnSelfButton" class="w-full bg-gray-400 hover:bg-gray-500 text-white font-semibold py-1 px-3 rounded-md text-sm shadow mt-2">
-                    Center on SELF
-                </button>
-                <button id="resetViewButton" class="w-full bg-gray-400 hover:bg-gray-500 text-white font-semibold py-1 px-3 rounded-md text-sm shadow mt-1">
-                    Reset Full View
-                </button>
-                <div class="mt-2">
-                    <label class="label-cbx text-sm font-medium text-slate-700">
-                        <input type="checkbox" id="toggleRingsCheckbox" class="invisible">
-                        <div class="checkbox">
-                            <svg width="20px" height="20px" viewBox="0 0 20 20">
-                                <path d="M3,1 L17,1 L17,1 C18.1045695,1 19,1.8954305 19,3 L19,17 L19,17 C19,18.1045695 18.1045695,19 17,19 L3,19 L3,19 C1.8954305,19 1,18.1045695 1,17 L1,3 L1,3 C1,1.8954305 1.8954305,1 3,1 Z"></path>
-                                <polyline points="4 11 8 15 16 6"></polyline>
-                            </svg>
-                        </div>
-                        <span>Show Distance Rings</span>
-                    </label>
-                </div>
-                <div>
-                    <label class="label-cbx text-sm font-medium text-slate-700">
-                        <input type="checkbox" id="toggleGridCheckbox" class="invisible">
-                        <div class="checkbox">
-                            <svg width="20px" height="20px" viewBox="0 0 20 20">
-                                <path d="M3,1 L17,1 L17,1 C18.1045695,1 19,1.8954305 19,3 L19,17 L19,17 C19,18.1045695 18.1045695,19 17,19 L3,19 L3,19 C1.8954305,19 1,18.1045695 1,17 L1,3 L1,3 C1,1.8954305 1.8954305,1 3,1 Z"></path>
-                                <polyline points="4 11 8 15 16 6"></polyline>
-                            </svg>
-                        </div>
-                        <span>Enable Grid Snapping</span>
-                    </label>
-                </div>
+                 <button id="centerOnSelfButton" class="w-full btn btn-secondary text-sm soft-shadow">Center on SELF</button>
+                 <button id="resetViewButton" class="w-full btn btn-secondary text-sm soft-shadow">Reset Full View</button>
+                 <div class="mt-2 text-sm space-y-2">
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" id="toggleRingsCheckbox" class="h-4 w-4 rounded border-gray-300 text-purple-700 focus:ring-purple-400"><span>Show Distance Rings</span></label>
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" id="toggleGridCheckbox" class="h-4 w-4 rounded border-gray-300 text-purple-700 focus:ring-purple-400"><span>Enable Grid Snapping</span></label>
+                 </div>
             </div>
 
-            <div class="pt-4 border-t border-slate-200 space-y-2">
-                <h2 class="text-lg font-semibold text-slate-600">Aspect Controls</h2>
-                <button id="addAspectButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out">
-                    Add Aspect
-                </button>
-                <button id="undeleteAspectButton" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out" disabled>
-                    Undelete Last Aspect
-                </button>
-                 <button id="clearMapButton" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out">
-                    Clear Entire Map
-                </button>
+            <!-- Aspect Controls -->
+            <div class="pt-4 border-t border-slate-200 space-y-2 px-2">
+                <h2 class="text-lg font-medium">Aspect Controls</h2>
+                <button id="addAspectButton" class="w-full btn btn-primary soft-shadow">Add Aspect</button>
+                <button id="undeleteAspectButton" class="w-full btn btn-warning soft-shadow" disabled>Undelete Last Aspect</button>
+                <button id="clearMapButton" class="w-full btn btn-danger soft-shadow">Clear Entire Map</button>
             </div>
             
-            <div class="pt-4 border-t border-slate-200 space-y-3">
-                <button id="toggleVocabularyButton" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow">
-                    Show Starter Vocabulary
-                </button>
-                <div id="starterVocabularyContainer" class="hidden space-y-3 pt-2">
+            <!-- Vocabulary -->
+            <div class="pt-4 border-t border-slate-200 space-y-3 px-2">
+                <button id="toggleVocabularyButton" class="w-full btn btn-special-indigo soft-shadow">Show Starter Vocabulary</button>
+                <div id="starterVocabularyContainer" class="hidden space-y-4 pt-3">
                     <div>
-                        <h4 class="font-semibold text-sm text-slate-600 mb-2">💠 EMOTIONS (Essence / Mood)</h4>
+                        <h4 class="font-semibold text-sm mb-2">💠 Emotions (Essence / Mood)</h4>
                         <div id="vocab-emotions" class="flex flex-wrap gap-2"></div>
                     </div>
                     <div>
-                        <h4 class="font-semibold text-sm text-slate-600 mb-2">🧩 THOUGHTS & BELIEFS (Node Prompts)</h4>
+                        <h4 class="font-semibold text-sm mb-2">🧩 Thoughts & Beliefs</h4>
                         <div id="vocab-thoughts" class="flex flex-wrap gap-2"></div>
                     </div>
                     <div>
-                        <h4 class="font-semibold text-sm text-slate-600 mb-2">🔍 PATTERNS / HABITS</h4>
+                        <h4 class="font-semibold text-sm mb-2">🔍 Patterns / Habits</h4>
                         <div id="vocab-patterns" class="flex flex-wrap gap-2"></div>
                     </div>
                     <div>
-                        <h4 class="font-semibold text-sm text-slate-600 mb-2">🌀 INNER TENSIONS</h4>
+                        <h4 class="font-semibold text-sm mb-2">🌀 Inner Tensions</h4>
                         <div id="vocab-tensions" class="flex flex-wrap gap-2"></div>
                     </div>
                     <div>
-                        <h4 class="font-semibold text-sm text-slate-600 mb-2">🌱 GROWTH THEMES</h4>
+                        <h4 class="font-semibold text-sm mb-2">🌱 Growth Themes</h4>
                         <div id="vocab-growth" class="flex flex-wrap gap-2"></div>
                     </div>
                     <div>
-                        <h4 class="font-semibold text-sm text-slate-600 mb-2">✨ MEMORY OR IMAGE FRAGMENTS</h4>
+                        <h4 class="font-semibold text-sm mb-2">✨ Memory or Image Fragments</h4>
                         <div id="vocab-memory" class="flex flex-wrap gap-2"></div>
                     </div>
                 </div>
             </div>
 
-            <div id="selectedAspectControls" class="space-y-3 hidden pt-4 border-t border-slate-200">
-                <h2 class="text-lg font-semibold text-slate-600">Edit Aspect: <span id="selectedAspectName" class="font-normal"></span></h2>
-                <div><label for="aspectText" class="block text-sm font-medium text-slate-700">Text Label:</label><input type="text" id="aspectText" class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
-                <div><label for="aspectSize" class="block text-sm font-medium text-slate-700">Size (Intensity): <span id="aspectSizeValue">50</span></label><input type="range" id="aspectSize" min="15" max="100" value="50" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"></div>
-                <div><label class="block text-sm font-medium text-slate-700">Color (Emotional Tone):</label><div id="colorPalette" class="mt-1 grid grid-cols-6 gap-1"></div></div>
-                <div id="connectionControls"><label class="block text-sm font-medium text-slate-700">Connection to SELF:</label><div class="mt-1 flex space-x-2"><button id="solidLineButton" data-line-type="solid" class="line-type-button flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded-md text-sm">Solid</button><button id="dashedLineButton" data-line-type="dashed" class="line-type-button flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded-md text-sm">Dashed</button><button id="noLineButton" data-line-type="none" class="line-type-button flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded-md text-sm">None</button></div></div>
-                <div><label class="block text-sm font-medium text-slate-700">Aura Symbol:</label><div id="auraSymbols" class="mt-1 grid grid-cols-5 gap-1"></div></div>
-                <div><label class="block text-sm font-medium text-slate-700">Waveform (Resonance/Dissonance):</label><div class="mt-1 flex items-center space-x-2"><button id="resonanceWaveButton" data-wave-type="sine" class="wave-type-button flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded-md text-sm">Resonance (Sine)</button><button id="dissonanceWaveButton" data-wave-type="sawtooth" class="wave-type-button flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded-md text-sm">Dissonance (Saw)</button></div><div class="mt-2 flex items-center space-x-2"><button id="noWaveButton" data-wave-type="none" class="wave-type-button flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded-md text-sm">No Waveform</button></div><label for="waveAmplitude" class="block text-xs font-medium text-slate-700 mt-2">Amplitude: <span id="waveAmplitudeValue">10</span></label><input type="range" id="waveAmplitude" min="5" max="30" value="10" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"></div>
-                
+            <!-- Selected Aspect Controls -->
+            <div id="selectedAspectControls" class="space-y-3 hidden pt-4 border-t border-slate-200 p-3 bg-white/40 rounded-xl">
+                <h2 class="text-lg font-medium">Edit Aspect: <span id="selectedAspectName" class="font-normal"></span></h2>
+                <div><label for="aspectText" class="block text-sm font-medium">Text Label:</label><input type="text" id="aspectText" class="mt-1 block w-full px-3 py-2 bg-white border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-400 focus:border-purple-400 sm:text-sm"></div>
+                <div><label for="aspectSize" class="block text-sm font-medium">Size (Intensity): <span id="aspectSizeValue">50</span></label><input type="range" id="aspectSize" min="15" max="100" value="50" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"></div>
+                <div><label class="block text-sm font-medium">Color (Emotional Tone):</label><div id="colorPalette" class="mt-1 grid grid-cols-6 gap-2"></div></div>
+                <div id="connectionControls"><label class="block text-sm font-medium">Connection to SELF:</label><div class="mt-1 flex space-x-2"><button id="solidLineButton" data-line-type="solid" class="line-type-button flex-1 btn btn-secondary text-sm">Solid</button><button id="dashedLineButton" data-line-type="dashed" class="line-type-button flex-1 btn btn-secondary text-sm">Dashed</button><button id="noLineButton" data-line-type="none" class="line-type-button flex-1 btn btn-secondary text-sm">None</button></div></div>
+                <div><label class="block text-sm font-medium">Aura Symbol:</label><div id="auraSymbols" class="mt-1 grid grid-cols-5 gap-1"></div></div>
+                <div><label class="block text-sm font-medium">Waveform:</label><div class="mt-1 flex items-center space-x-2"><button id="resonanceWaveButton" data-wave-type="sine" class="wave-type-button flex-1 btn btn-secondary text-sm">Resonance</button><button id="dissonanceWaveButton" data-wave-type="sawtooth" class="wave-type-button flex-1 btn btn-secondary text-sm">Dissonance</button></div><div class="mt-2 flex items-center space-x-2"><button id="noWaveButton" data-wave-type="none" class="wave-type-button flex-1 btn btn-secondary text-sm">No Waveform</button></div><label for="waveAmplitude" class="block text-xs font-medium mt-2">Amplitude: <span id="waveAmplitudeValue">10</span></label><input type="range" id="waveAmplitude" min="5" max="30" value="10" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"></div>
                 <div class="flex space-x-2 pt-2">
-                    <button id="bringToFrontButton" class="w-full bg-slate-500 hover:bg-slate-600 text-white font-semibold py-1 px-3 rounded-lg shadow-sm transition duration-150 ease-in-out text-sm">
-                        Bring to Front
-                    </button>
-                    <button id="sendToBackButton" class="w-full bg-slate-500 hover:bg-slate-600 text-white font-semibold py-1 px-3 rounded-lg shadow-sm transition duration-150 ease-in-out text-sm">
-                        Send to Back
-                    </button>
+                    <button id="bringToFrontButton" class="w-full btn btn-secondary text-sm">Bring to Front</button>
+                    <button id="sendToBackButton" class="w-full btn btn-secondary text-sm">Send to Back</button>
                 </div>
-
-                <button id="deleteAspectButton" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out mt-2">Delete Aspect</button>
+                <button id="deleteAspectButton" class="w-full btn btn-danger mt-2">Delete Aspect</button>
             </div>
 
-            <div id="selfControls" class="space-y-3 hidden pt-4 border-t border-slate-200">
-                <h2 class="text-lg font-semibold text-slate-600">Edit SELF Node</h2>
-                <div><label class="block text-sm font-medium text-slate-700">Color (Emotional Tone):</label><div id="selfColorPalette" class="mt-1 grid grid-cols-6 gap-1"></div></div>
+            <!-- SELF Controls -->
+            <div id="selfControls" class="space-y-3 hidden pt-4 border-t border-slate-200 p-3 bg-white/40 rounded-xl">
+                <h2 class="text-lg font-medium">Edit SELF Node</h2>
+                <div><label class="block text-sm font-medium">Color (Emotional Tone):</label><div id="selfColorPalette" class="mt-1 grid grid-cols-6 gap-2"></div></div>
             </div>
 
-            <div class="pt-4 border-t border-slate-200 space-y-3">
-                <h2 class="text-lg font-semibold text-slate-600">Map Data & Narrative</h2>
-                <button id="generateNarrativeButton" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg shadow mb-2">
-                    Generate Narrative
-                </button>
-                <button id="saveMapButton" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow">
-                    Save Map (JSON)
-                </button>
+            <!-- Data & Narrative -->
+            <div class="pt-4 border-t border-slate-200 space-y-3 px-2">
+                <h2 class="text-lg font-medium">Map & Narrative</h2>
+                <button id="generateNarrativeButton" class="w-full btn btn-special-sky soft-shadow mb-2">Generate Narrative</button>
+                <button id="saveMapButton" class="w-full btn btn-success soft-shadow">Save Map (JSON)</button>
                 <div>
-                    <label for="loadMapInput" class="block text-sm font-medium text-slate-700 mb-1">Load Map (JSON):</label>
-                    <input type="file" id="loadMapInput" accept=".json" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    <label for="loadMapInput" class="block text-sm font-medium mb-1">Load Map (JSON):</label>
+                    <input type="file" id="loadMapInput" accept=".json" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer">
                 </div>
-                <h2 class="text-lg font-semibold text-slate-600 mt-3">Export Map</h2>
-                <button id="exportPngButton" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg shadow">
-                    Export as PNG
-                </button>
-                <button id="exportSvgButton" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg shadow mt-2">
-                    Export as SVG
-                </button>
+                <h2 class="text-lg font-medium mt-3">Export Map</h2>
+                <button id="exportPngButton" class="w-full btn btn-special-teal soft-shadow">Export as PNG</button>
+                <button id="exportSvgButton" class="w-full btn btn-special-purple soft-shadow mt-2">Export as SVG</button>
             </div>
 
-            <div class="pt-4 border-t border-slate-200 space-y-3">
-                <h2 class="text-lg font-semibold text-slate-600">Help & Information</h2>
-                <button id="quickHelpButton" class="w-full bg-fuchsia-500 hover:bg-fuchsia-600 text-white font-semibold py-2 px-4 rounded-lg shadow">
-                    Quick Help
-                </button>
-                <a href="https://drive.google.com/file/d/1IPkqdP3zENqIkOgxRMJAETQX-RhgMlmM/view?usp=sharing" target="_blank" rel="noopener noreferrer" id="learnMoreFEMSButton" class="block w-full text-center bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow">
-                    Learn More about FEMS
-                </a>
+            <!-- Help & Info -->
+            <div class="pt-4 border-t border-slate-200 space-y-3 px-2">
+                <h2 class="text-lg font-medium">Help & Information</h2>
+                <button id="quickHelpButton" class="w-full btn btn-special-fuchsia soft-shadow">Quick Help</button>
+                <a href="https://drive.google.com/file/d/1IPkqdP3zENqIkOgxRMJAETQX-RhgMlmM/view?usp=sharing" target="_blank" rel="noopener noreferrer" class="block w-full text-center btn btn-special-indigo soft-shadow">Learn More about FEMS</a>
             </div>
 
-            <div class="pt-4 border-t border-slate-200 space-y-3">
-                <h2 class="text-lg font-semibold text-slate-600">Usage and Licensing</h2>
-                <p class="text-sm text-slate-600">
+            <!-- Licensing -->
+            <div class="pt-4 border-t border-slate-200 space-y-3 px-2">
+                <h2 class="text-lg font-medium">Usage and Licensing</h2>
+                <p class="text-sm">
                     Personal use of FEMS is free. To support future development, please consider a donation.
                     <br><br>
-                    For all other uses, including commercial, academic, or therapeutic, a license is required. Please contact me at <a href="mailto:hello@thorstenbecker.de" class="text-indigo-500 hover:text-indigo-700">hello@thorstenbecker.de</a> to inquire about licensing.
+                    For all other uses, including commercial, academic, or therapeutic, a license is required. Please contact me at <a href="mailto:hello@thorstenbecker.de" class="btn-link">hello@thorstenbecker.de</a> to inquire about licensing.
                 </p>
-                <a href="https://ko-fi.com/thorstenbecker" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition duration-150 ease-in-out">
-                    <i class="fas fa-heart mr-2"></i>
-                    <span>Donate</span>
+                <a href="https://ko-fi.com/thorstenbecker" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center w-full btn btn-success soft-shadow">
+                    <i class="fas fa-heart mr-2"></i><span>Donate</span>
                 </a>
             </div>
-
         </div>
-        <div id="copyrightNotice" class="control-panel-footer"></div>
+        <div id="copyrightNotice" class="p-3 border-t border-slate-200 text-center text-xs text-gray-500 flex-shrink-0"></div>
     </div>
 
+    <!-- Main Canvas Area -->
     <div class="flex-1 p-4 order-1 md:order-2 flex justify-center items-center">
-        <div class="canvas-container shadow-xl">
-             <canvas id="backgroundCanvas" class="bg-white"></canvas>
+        <div class="canvas-container soft-shadow-xl">
+             <canvas id="backgroundCanvas"></canvas>
              <canvas id="femsCanvas" class="bg-transparent"></canvas>
         </div>
     </div>
-
-    <div id="textInputModal" class="modal"> <div class="modal-content"><span class="close-button" id="closeModalButton">&times;</span><h3 id="modalTitle" class="text-xl font-semibold mb-4">Enter Text</h3><input type="text" id="modalTextInput" class="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"><button id="modalSaveButton" class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow">Save</button></div></div>
-    <div id="messageModal" class="modal"> <div class="modal-content"><span class="close-button" id="closeMessageModalButton">&times;</span><h3 id="messageModalTitle" class="text-xl font-semibold mb-2">Notification</h3><p id="messageModalText" class="text-sm text-slate-700"></p><button id="messageModalOkButton" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow">OK</button></div></div>
-    <div id="narrativeModal" class="modal"> <div class="modal-content"><span class="close-button" id="closeNarrativeModalButton">&times;</span><h3 id="narrativeModalTitle" class="text-xl font-semibold mb-4">Generated Narrative</h3><textarea id="narrativeModalTextarea" readonly class="w-full h-64 p-2 border border-slate-300 rounded-md"></textarea><div class="flex justify-end space-x-2 mt-4"><button id="narrativeModalCopyButton" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow">Copy to Clipboard</button><button id="narrativeModalCloseButton" class="bg-gray-300 hover:bg-gray-400 text-slate-700 font-semibold py-2 px-4 rounded-lg shadow">Close</button></div></div></div>
-    <div id="quickHelpModal" class="modal"> <div class="modal-content"><span class="close-button" id="closeQuickHelpModalButton">&times;</span><h3 class="text-xl font-semibold mb-4">Quick Help - FEMS</h3><div id="quickHelpContent" class="text-sm text-slate-700 help-modal-content space-y-2">
-    <p><strong>Fuzzy Emotion Mapping System (FEMS)</strong> is a visual tool for exploring your emotional landscape.</p>
-    <p class="font-semibold">The Purpose of FEMS:</p>
-    <p class="ml-4">FEMS is a visual and intuitive way to make emotional clarity visible. Developed as part of the Clarity Navigation framework, it helps you gently explore your internal landscape by mapping how emotions resonate, relate, and move in relation to your self. The term "fuzzy" reflects the intuitive, non-binary nature of emotion—they blend, pulse, and shift without hard edges. This tool is not for diagnosis; it's an invitation to reflect, externalize, and better understand what already lives within you. It’s not about controlling your emotions, but about making contact with them.</p>
-    <p><strong>Core Concepts:</strong></p>
-    <ul class="list-disc list-inside ml-4">
-        <li><strong>SELF Node:</strong> The central circle representing your current emotional state.</li>
-        <li><strong>Aspects:</strong> Circles around SELF representing emotional influences (thoughts, people, memories, etc.).</li>
-        <li><strong>Size:</strong> Emotional intensity of an Aspect (larger = stronger).</li>
-        <li><strong>Color:</strong> Emotional tone (e.g., Green for calm, Red for stress). Hover over color buttons for tooltips.</li>
-        <li><strong>Distance to SELF:</strong> Relevance or emotional presence (closer = more pressing).</li>
-        <li><strong>Lines to SELF:</strong> Solid for strong influence, Dashed for subtle/uncertain.</li>
-        <li><strong>Aura Symbols:</strong> Optional emotional modifiers (e.g., 🔒 Blocked, 🌀 Spiraling). Hover for tooltips.</li>
-        <li><strong>Waveforms:</strong> Sine wave for resonance (feels good), Sawtooth for dissonance (feels off). Amplitude shows strength. Waveform color is high-contrast (typically black) for readability.</li>
-    </ul>
-    <p><strong>Basic Interactions:</strong></p>
-    <ul class="list-disc list-inside ml-4">
-        <li><strong>Add Aspect:</strong> Click the "Add Aspect" button.</li>
-        <li><strong>Starter Vocabulary:</strong> Use the collapsible vocabulary list to quickly add or rename aspects.</li>
-        <li><strong>Move Aspect:</strong> Click and drag an Aspect circle.</li>
-        <li><strong>Edit Properties:</strong> Click an Aspect or SELF to select it. Use the controls on the left to edit text, size, color, etc.</li>
-        <li><strong>Edit Text (Quick):</strong> Double-click an Aspect to open a text input dialog. (Renaming SELF is disabled).</li>
-        <li><strong>Pan Canvas:</strong> Click and drag the canvas background.</li>
-        <li><strong>Zoom Canvas:</strong> Use your mouse wheel over the canvas. Use +/- buttons for finer control. On touch devices, use pinch-to-zoom.</li>
-        <li><strong>Layering:</strong> Use "Bring to Front" / "Send to Back" in the edit panel to control which aspects overlap others.</li>
-        <li><strong>Delete Aspect:</strong> Select an Aspect and click "Delete Aspect". Use "Undelete" to recover the last one.</li>
-        <li><strong>Clear Map:</strong> Resets the entire map to start fresh.</li>
-    </ul>
-    <p><strong>Keyboard Shortcuts:</strong></p>
-    <ul class="list-disc list-inside ml-4">
-        <li><strong>A:</strong> Add a new Aspect.</li>
-        <li><strong>Delete / Backspace:</strong> Delete the selected Aspect.</li>
-        <li><strong>C:</strong> Center the view on the SELF node.</li>
-        <li><strong>R:</strong> Toggle the distance rings.</li>
-        <li><strong>G:</strong> Toggle the grid snapping.</li>
-        <li><strong>+ / =:</strong> Zoom in.</li>
-        <li><strong>-:</strong> Zoom out.</li>
-        <li><strong>0:</strong> Reset the view completely.</li>
-        <li><strong>? / /:</strong> Open this Quick Help window.</li>
-        <li><strong>Ctrl/Cmd + Z:</strong> Undelete the last deleted Aspect.</li>
-        <li><strong>Ctrl/Cmd + S:</strong> Save the current map as a JSON file.</li>
-        <li><strong>Ctrl/Cmd + O:</strong> Open the dialog to load a map from a JSON file.</li>
-    </ul>
-    <p>Use "Generate Narrative" to get a text-based summary of your map. Explore other options for saving, loading, and exporting your map.</p>
-    <p><strong>Feedback and Analysis:</strong></p>
-    <p>To receive feedback and guidance on your FEMS map you can upload it to the Clarity Mirror custom GPT here: <a href="https://chatgpt.com/g/g-67e9376fe7dc81919293ee6e06131cf8-the-clarity-mirror" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">https://chatgpt.com/g/g-67e9376fe7dc81919293ee6e06131cf8-the-clarity-mirror</a>. You can prompt for an analysis or use the following starter prompt:</p>
-    <p class="italic ml-4">I've uploaded my clarity map. Please take a look and offer your interpretation:</p>
-    <ul class="list-decimal list-inside ml-8">
-        <li>What emotional patterns or dynamics do you see?</li>
-        <li>Which elements seem dominant or distant?</li>
-        <li>Are there tensions, resonance, or blocks I should reflect on?</li>
-    </ul>
-    <p><strong>For Researchers:</strong></p>
-    <p>If you are a researcher and would like to have a map turned into quantitative data, you can use the Clarity Mapper Pro here: <a href="https://chatgpt.com/g/g-67fb7013a60481919127bd14f74aa72e-clarity-mapper-pro" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">https://chatgpt.com/g/g-67fb7013a60481919127bd14f74aa72e-clarity-mapper-pro</a>.</p>
-    <p class="pt-2 mt-2 border-t border-slate-200">
-        <strong>Usage, Licensing & Support:</strong><br>
-        This tool is free for personal, non-commercial use. If you find it valuable, please consider
-        <a href="https://ko-fi.com/thorstenbecker" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">donating to support its development</a>.
-        For all other uses, including commercial, academic, or therapeutic, a license is required. Please contact
-        <a href="mailto:hello@thorstenbecker.de" class="text-indigo-500 hover:text-indigo-700">hello@thorstenbecker.de</a> to inquire.
-    </p>
-    <p class="pt-3 mt-3 border-t border-slate-200 text-center text-xs text-slate-500">
-        &copy; <span id="help-modal-copyright-year"></span> Thorsten Becker, <a href="https://www.thorstenbecker.de" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">www.thorstenbecker.de</a>
-    </p>
-</div><button id="quickHelpModalCloseButton" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow">OK</button></div></div>
-
-    <div id="confirmClearModal" class="modal">
-        <div class="modal-content">
-            <h3 id="confirmClearModalTitle" class="text-xl font-semibold mb-4">Confirm Action</h3>
-            <p id="confirmClearModalText" class="text-sm text-slate-700 mb-6">Are you sure you want to clear the entire map? This action cannot be undone.</p>
-            <div class="flex justify-end space-x-3">
-                <button id="confirmClearCancelButton" class="bg-gray-300 hover:bg-gray-400 text-slate-700 font-semibold py-2 px-4 rounded-lg shadow">Cancel</button>
-                <button id="confirmClearOkButton" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow">Clear Map</button>
-            </div>
-        </div>
-    </div>
+    
+    <!-- Modals -->
+    <div id="textInputModal" class="modal"><div class="modal-content"><span class="close-button" id="closeModalButton">&times;</span><h3 id="modalTitle" class="text-xl font-semibold mb-4">Enter Text</h3><input type="text" id="modalTextInput" class="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-400 focus:border-purple-400"><button id="modalSaveButton" class="mt-4 w-full btn btn-success">Save</button></div></div>
+    <div id="messageModal" class="modal"><div class="modal-content"><span class="close-button" id="closeMessageModalButton">&times;</span><h3 id="messageModalTitle" class="text-xl font-semibold mb-2">Notification</h3><p id="messageModalText" class="text-sm"></p><button id="messageModalOkButton" class="mt-4 w-full btn btn-primary">OK</button></div></div>
+    <div id="narrativeModal" class="modal"><div class="modal-content"><span class="close-button" id="closeNarrativeModalButton">&times;</span><h3 id="narrativeModalTitle" class="text-xl font-semibold mb-4">Generated Narrative</h3><textarea id="narrativeModalTextarea" readonly class="w-full h-64 p-2 border border-slate-300 rounded-md bg-white"></textarea><div class="flex justify-end space-x-2 mt-4"><button id="narrativeModalCopyButton" class="btn btn-special-indigo">Copy to Clipboard</button><button id="narrativeModalCloseButton" class="btn btn-secondary">Close</button></div></div></div>
+    <div id="quickHelpModal" class="modal"><div class="modal-content"><span class="close-button" id="closeQuickHelpModalButton">&times;</span><h3 class="text-xl font-semibold mb-4">Quick Help - FEMS</h3><div id="quickHelpContent" class="text-sm help-modal-content space-y-2"></div><button id="quickHelpModalCloseButton" class="mt-4 w-full btn btn-primary">OK</button></div></div>
+    <div id="confirmClearModal" class="modal"><div class="modal-content"><h3 id="confirmClearModalTitle" class="text-xl font-semibold mb-4">Confirm Action</h3><p id="confirmClearModalText" class="text-sm mb-6">Are you sure you want to clear the entire map? This action cannot be undone.</p><div class="flex justify-end space-x-3"><button id="confirmClearCancelButton" class="btn btn-secondary">Cancel</button><button id="confirmClearOkButton" class="btn btn-danger">Clear Map</button></div></div></div>
 
 <script>
         // --- Canvas Setup ---
@@ -417,8 +381,15 @@
         const lineTypeButtons = document.querySelectorAll('.line-type-button');
         const waveTypeButtons = document.querySelectorAll('.wave-type-button');
 
-        // --- Configuration ---
-        const FEMS_COLORS = { GREEN: { value: '#4ade80', name: 'Grounded, Safe', tooltip: 'Support, healing, calm' }, YELLOW: { value: '#facc15', name: 'Curious, Alert', tooltip: 'New ideas, tensions, focus' }, RED: { value: '#f87171', name: 'Stress, Overwhelm', tooltip: 'Pressure, urgency, conflict' }, GRAY: { value: '#9ca3af', name: 'Foggy, Numb', tooltip: 'Confusion, disconnection' }, BLUE: { value: '#60a5fa', name: 'Reflective, Calm', tooltip: 'Insight, peace, emotional space' }, PURPLE: { value: '#c084fc', name: 'Deep, Emotional', tooltip: 'Grief, awe, transformation' } };
+        // --- Configuration (Cozy Theme) ---
+        const FEMS_COLORS = { 
+            GREEN: { value: '#9DBA7B', name: 'Grounded, Safe', tooltip: 'Support, healing, calm' }, 
+            YELLOW: { value: '#EAD690', name: 'Curious, Alert', tooltip: 'New ideas, tensions, focus' }, 
+            RED: { value: '#D48C7A', name: 'Stress, Overwhelm', tooltip: 'Pressure, urgency, conflict' }, 
+            GRAY: { value: '#B0A89E', name: 'Foggy, Numb', tooltip: 'Confusion, disconnection' }, 
+            BLUE: { value: '#8EAFBC', name: 'Reflective, Calm', tooltip: 'Insight, peace, emotional space' }, 
+            PURPLE: { value: '#A08CAF', name: 'Deep, Emotional', tooltip: 'Grief, awe, transformation' } 
+        };
         const AURA_SYMBOLS = { BLOCKED: { symbol: '🔒', name: 'Blocked', tooltip: 'Emotion is inaccessible' }, SPIRALING: { symbol: '🌀', name: 'Spiraling', tooltip: 'Emotion repeats or loops' }, SOFTENING: { symbol: '💧', name: 'Softening', tooltip: 'Emotion is easing' }, GROWTH: { symbol: '🌿', name: 'Growth', tooltip: 'Potential for healing' }, FIXED: { symbol: '🪨', name: 'Fixed', tooltip: 'Feels heavy or unchangeable' }, NONE: { symbol: ' ', name: 'None', tooltip: 'No aura symbol'} };
         const SELF_DEFAULT_RADIUS = 60; const SELF_DEFAULT_COLOR = FEMS_COLORS.GRAY.value; const SELF_DEFAULT_TEXT = 'SELF';
         const ASPECT_DEFAULT_RADIUS = 40; const ASPECT_DEFAULT_COLOR = FEMS_COLORS.YELLOW.value;
@@ -466,7 +437,7 @@
             if (!state.draggingCircleId) return null;
             return state.aspects.find(a => a.id === state.draggingCircleId);
         };
-        function setCopyright() { const currentYear = new Date().getFullYear(); copyrightNoticeDiv.innerHTML = `&copy; ${currentYear} Thorsten Becker, <a href="https://www.thorstenbecker.de" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:text-indigo-700">www.thorstenbecker.de</a>`;}
+        function setCopyright() { const currentYear = new Date().getFullYear(); copyrightNoticeDiv.innerHTML = `&copy; ${currentYear} Thorsten Becker, <a href="https://www.thorstenbecker.de" target="_blank" rel="noopener noreferrer" class="btn-link">www.thorstenbecker.de</a>`;}
         
         // --- Core Application Logic ---
         function resetSelfCircleToDefaults() {
@@ -526,9 +497,6 @@
             backgroundCtx.scale(devicePixelRatio, devicePixelRatio);
             backgroundCtx.clearRect(0, 0, logicalCanvasWidth, logicalCanvasHeight);
             
-            backgroundCtx.fillStyle = 'white';
-            backgroundCtx.fillRect(0,0,logicalCanvasWidth,logicalCanvasHeight);
-            
             backgroundCtx.translate(state.view.panX, state.view.panY);
             backgroundCtx.scale(state.view.scale, state.view.scale);
             if (state.view.showGrid) drawGrid();
@@ -537,7 +505,7 @@
         }
 
         function drawGrid() { 
-            backgroundCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)'; 
+            backgroundCtx.strokeStyle = 'rgba(138, 129, 122, 0.15)'; 
             backgroundCtx.lineWidth = 0.5 / state.view.scale; 
             const logicalCanvasWidth = canvas.width / (window.devicePixelRatio||1); 
             const logicalCanvasHeight = canvas.height / (window.devicePixelRatio||1); 
@@ -552,9 +520,9 @@
         }
         function drawConcentricRings() { 
             if (!state.selfCircle) return; 
-            backgroundCtx.strokeStyle = 'rgba(100,100,100,0.2)'; 
+            backgroundCtx.strokeStyle = 'rgba(138, 129, 122, 0.2)'; 
             backgroundCtx.lineWidth = 1 / state.view.scale; 
-            backgroundCtx.setLineDash([5/state.view.scale, 5/state.view.scale]); 
+            backgroundCtx.setLineDash([4/state.view.scale, 8/state.view.scale]); 
             CONCENTRIC_RING_RADII.forEach(radius => { backgroundCtx.beginPath(); backgroundCtx.arc(state.selfCircle.x, state.selfCircle.y, radius, 0, Math.PI * 2); backgroundCtx.stroke(); }); 
             backgroundCtx.setLineDash([]);
         }
@@ -564,7 +532,7 @@
             targetCtx.arc(circle.x, circle.y, circle.radius, 0, Math.PI*2);
             targetCtx.fillStyle = circle.color;
             targetCtx.fill();
-            targetCtx.strokeStyle = '#374151';
+            targetCtx.strokeStyle = '#4a443f';
             targetCtx.lineWidth = (circle.id === state.selectedCircleId && targetCtx === ctx ? 3 : 1.5)/state.view.scale;
             targetCtx.stroke();
 
@@ -575,7 +543,7 @@
             const layout = calculateTextLayout(circle.text, circle.radius, targetCtx);
             const { fontSize, lines } = layout;
             
-            targetCtx.font = `bold ${fontSize}px Inter, sans-serif`;
+            targetCtx.font = `500 ${fontSize}px Lora, serif`;
             const lineHeight = fontSize * 1.2;
             const totalTextHeight = lines.length * lineHeight;
             let startY = circle.y - (totalTextHeight / 2) + (lineHeight / 2);
@@ -589,7 +557,7 @@
 
             if (circle.aura && circle.aura.symbol.trim() !== '') {
                 const symbolSize = fontSize * 1.5; 
-                targetCtx.font = `${symbolSize}px Inter, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif`;
+                targetCtx.font = `${symbolSize}px 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif`;
                 targetCtx.fillText(circle.aura.symbol, circle.x + circle.radius*0.5, circle.y - circle.radius*0.5);
             }
 
@@ -604,13 +572,13 @@
             let finalFontSize = FONT_SIZE_STANDARD;
 
             for (let currentTestSize = Math.floor(idealScaledFontSize); currentTestSize >= FONT_SIZE_STANDARD; currentTestSize--) {
-                context.font = `bold ${currentTestSize}px Inter, sans-serif`;
+                context.font = `500 ${currentTestSize}px Lora, serif`;
                 if (context.measureText(text).width <= maxTextWidth) {
                     finalFontSize = currentTestSize;
                     break;
                 }
             }
-            context.font = `bold ${finalFontSize}px Inter, sans-serif`;
+            context.font = `500 ${finalFontSize}px Lora, serif`;
 
             const words = text.split(' ');
             let currentLine = '';
@@ -647,7 +615,7 @@
         }
 
 
-        function drawLine(fromCircle, toCircle, lineType, targetCtx = ctx) { targetCtx.beginPath(); const angle = Math.atan2(toCircle.y-fromCircle.y, toCircle.x-fromCircle.x); const startX = fromCircle.x+fromCircle.radius*Math.cos(angle); const startY = fromCircle.y+fromCircle.radius*Math.sin(angle); const endX = toCircle.x-toCircle.radius*Math.cos(angle); const endY = toCircle.y-toCircle.radius*Math.sin(angle); targetCtx.moveTo(startX, startY); targetCtx.lineTo(endX, endY); targetCtx.strokeStyle = '#374151'; targetCtx.lineWidth = 2/state.view.scale; if(lineType === 'dashed') targetCtx.setLineDash([10/state.view.scale, 5/state.view.scale]); else targetCtx.setLineDash([]); targetCtx.stroke(); targetCtx.setLineDash([]);}
+        function drawLine(fromCircle, toCircle, lineType, targetCtx = ctx) { targetCtx.beginPath(); const angle = Math.atan2(toCircle.y-fromCircle.y, toCircle.x-fromCircle.x); const startX = fromCircle.x+fromCircle.radius*Math.cos(angle); const startY = fromCircle.y+fromCircle.radius*Math.sin(angle); const endX = toCircle.x-toCircle.radius*Math.cos(angle); const endY = toCircle.y-toCircle.radius*Math.sin(angle); targetCtx.moveTo(startX, startY); targetCtx.lineTo(endX, endY); targetCtx.strokeStyle = '#4a443f'; targetCtx.lineWidth = 2/state.view.scale; if(lineType === 'dashed') targetCtx.setLineDash([10/state.view.scale, 5/state.view.scale]); else targetCtx.setLineDash([]); targetCtx.stroke(); targetCtx.setLineDash([]);}
         function drawWaveform(circle, targetCtx=ctx) {
             if (!circle.waveform || circle.waveform.type==='none') return;
             const {type, amplitude: rawAmplitude} = circle.waveform;
@@ -671,7 +639,7 @@
             }
             targetCtx.stroke();
         }
-        function kontrastFarbe(hexcolor){ hexcolor = hexcolor.replace("#", ""); var r=parseInt(hexcolor.substr(0,2),16); var g=parseInt(hexcolor.substr(2,2),16); var b=parseInt(hexcolor.substr(4,2),16); var yiq=((r*299)+(g*587)+(b*114))/1000; return (yiq >= 128) ? '#000000':'#FFFFFF';}
+        function kontrastFarbe(hexcolor){ hexcolor = hexcolor.replace("#", ""); var r=parseInt(hexcolor.substr(0,2),16); var g=parseInt(hexcolor.substr(2,2),16); var b=parseInt(hexcolor.substr(4,2),16); var yiq=((r*299)+(g*587)+(b*114))/1000; return (yiq >= 128) ? '#4a443f':'#FDFBF6';}
         
         function drawAll() {
             drawBackground();
@@ -749,10 +717,10 @@
                     aspectSize.value = selectedCircle.radius;
                     aspectSizeValue.textContent = selectedCircle.radius;
                     colorPaletteContainer.querySelectorAll('.color-palette-button').forEach(btn => btn.classList.toggle('selected', btn.dataset.color === selectedCircle.color));
-                    lineTypeButtons.forEach(btn => { const isSelected = btn.dataset.lineType === selectedCircle.connectionToSelf; btn.classList.toggle('bg-blue-500',isSelected); btn.classList.toggle('text-white',isSelected); btn.classList.toggle('bg-slate-200',!isSelected); btn.classList.toggle('text-slate-700',!isSelected);});
+                    lineTypeButtons.forEach(btn => { const isSelected = btn.dataset.lineType === selectedCircle.connectionToSelf || (selectedCircle.connectionToSelf === null && btn.dataset.lineType === 'none'); btn.classList.toggle('active', isSelected); });
                     document.querySelectorAll('#auraSymbols .symbol-button').forEach(btn => btn.classList.toggle('selected', selectedCircle.aura && btn.dataset.symbolName === selectedCircle.aura.name));
                     const wf = selectedCircle.waveform || {type:'none', amplitude:10};
-                    waveTypeButtons.forEach(btn => { const isSelected = btn.dataset.waveType === wf.type; btn.classList.toggle('bg-blue-500',isSelected); btn.classList.toggle('text-white',isSelected); btn.classList.toggle('bg-slate-200',!isSelected); btn.classList.toggle('text-slate-700',!isSelected);});
+                    waveTypeButtons.forEach(btn => { const isSelected = btn.dataset.waveType === wf.type; btn.classList.toggle('active',isSelected); });
                     waveAmplitude.value = wf.amplitude;
                     waveAmplitudeValue.textContent = wf.amplitude;
                     waveAmplitude.disabled = wf.type === 'none';
@@ -827,17 +795,13 @@
             const previouslySelectedId=state.selectedCircleId; 
             state.selectedCircleId=null;
             
-            // Create a temporary canvas to merge background and foreground
             const exportCanvas = document.createElement('canvas');
             exportCanvas.width = canvas.width;
             exportCanvas.height = canvas.height;
             const exportCtx = exportCanvas.getContext('2d');
 
-            // Draw background first, then foreground on top
             exportCtx.drawImage(backgroundCanvas, 0, 0);
             
-            // We must redraw the main canvas content onto the export canvas
-            // as the main canvas itself is transparent.
             const tempPanX = state.view.panX; const tempPanY = state.view.panY; const tempScale = state.view.scale;
             exportCtx.save();
             exportCtx.translate(tempPanX, tempPanY); 
@@ -857,13 +821,12 @@
         function escapeXml(unsafe) { return unsafe.replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','\'':'&apos;','"':'&quot;'}[c]));}
         
         function addCircleToSvg(circle, elementsArray, tempCtxForMeasure) {
-            // Guard against invalid circle data which could come from a corrupt file load
             if (!circle || typeof circle.text !== 'string') {
                 console.error("Skipping invalid circle in SVG export:", circle);
                 return;
             }
 
-            elementsArray.push(`<circle cx="${circle.x}" cy="${circle.y}" r="${circle.radius}" fill="${circle.color}" stroke="#374151" stroke-width="1.5" />`);
+            elementsArray.push(`<circle cx="${circle.x}" cy="${circle.y}" r="${circle.radius}" fill="${circle.color}" stroke="#4a443f" stroke-width="1.5" />`);
             
             const textColor = kontrastFarbe(circle.color);
             const { fontSize: finalFontSizeSvg, lines: svgTextLines } = calculateTextLayout(circle.text, circle.radius, tempCtxForMeasure);
@@ -871,13 +834,10 @@
             if (svgTextLines.length > 0) {
                 const lineHeight = finalFontSizeSvg * 1.2; 
                 const totalTextHeight = svgTextLines.length * lineHeight;
-                // Calculate the Y coordinate for the top-most edge of the text block
                 const startY = circle.y - totalTextHeight / 2;
                 
-                // Using dominant-baseline="hanging", the 'y' attribute refers to the top of the text.
-                let textSVG = `<text x="${circle.x}" y="${startY}" font-family="Inter, sans-serif" font-size="${finalFontSizeSvg}" font-weight="bold" text-anchor="middle" dominant-baseline="hanging" fill="${textColor}">`; 
+                let textSVG = `<text x="${circle.x}" y="${startY}" font-family="Lora, serif" font-size="${finalFontSizeSvg}" font-weight="500" text-anchor="middle" dominant-baseline="hanging" fill="${textColor}">`; 
                 svgTextLines.forEach((line, index) => {
-                    // The first line starts at y=startY. Subsequent lines are shifted down by dy.
                     textSVG += `<tspan x="${circle.x}" dy="${index === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`;
                 });
                 textSVG += `</text>`; 
@@ -886,7 +846,7 @@
 
             if (circle.aura && circle.aura.symbol.trim() !== '') { 
                 const symbolSize = finalFontSizeSvg * 1.5; 
-                elementsArray.push(`<text x="${(circle.x + circle.radius*0.5).toFixed(2)}" y="${(circle.y - circle.radius*0.5).toFixed(2)}" font-family="Inter, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif" font-size="${symbolSize}" text-anchor="middle" dominant-baseline="central">${escapeXml(circle.aura.symbol)}</text>`);
+                elementsArray.push(`<text x="${(circle.x + circle.radius*0.5).toFixed(2)}" y="${(circle.y - circle.radius*0.5).toFixed(2)}" font-family="'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif" font-size="${symbolSize}" text-anchor="middle" dominant-baseline="central">${escapeXml(circle.aura.symbol)}</text>`);
             } 
             
             if (circle.waveform && circle.waveform.type !== 'none') {
@@ -900,7 +860,7 @@
                 const waveWidth = circle.radius * 1.0; const waveStartX = circle.x - waveWidth / 2; const waveEndX = circle.x + waveWidth / 2;
                 const marginFromBottomEdgeSvg = circle.radius * 0.1; const waveBaseY = circle.y + circle.radius - effectiveAmplitudeSvg - marginFromBottomEdgeSvg;
                 let pathData = `M ${waveStartX.toFixed(2)} ${waveBaseY.toFixed(2)} `; const waveStrokeColorSvg = kontrastFarbe(circle.color);
-                const sineWaveSteps = Math.max(20, waveWidth / 2); // Control the smoothness of the sine wave
+                const sineWaveSteps = Math.max(20, waveWidth / 2);
                 if (type==='sine') { 
                     for (let i=0; i<=sineWaveSteps; i++) {
                         const pointX = waveStartX + (i/sineWaveSteps) * waveWidth;
@@ -916,7 +876,7 @@
             }
         }
 
-        exportSvgButton.addEventListener('click', () => { let minX=state.selfCircle.x-state.selfCircle.radius, minY=state.selfCircle.y-state.selfCircle.radius, maxX=state.selfCircle.x+state.selfCircle.radius, maxY=state.selfCircle.y+state.selfCircle.radius; state.aspects.forEach(a => {minX=Math.min(minX, a.x-a.radius); minY=Math.min(minY, a.y-a.radius); maxX=Math.max(maxX, a.x+a.radius); maxY=Math.max(maxY, a.y+a.radius);}); const padding=50; minX-=padding; minY-=padding; maxX+=padding; maxY+=padding; const worldWidth = maxX-minX; const worldHeight = maxY-minY; let svgElements=[]; const tempCtx=document.createElement('canvas').getContext('2d'); svgElements.push(`<g transform="translate(${-minX}, ${-minY})">`); if (state.view.showGrid) { let gridLinesSvg=''; for (let x=Math.floor(minX/GRID_SIZE)*GRID_SIZE; x<=maxX; x+=GRID_SIZE) gridLinesSvg += `<line x1="${x}" y1="${minY}" x2="${x}" y2="${maxY}" stroke="rgba(0,0,0,0.1)" stroke-width="0.5" />`; for (let y=Math.floor(minY/GRID_SIZE)*GRID_SIZE; y<=maxY; y+=GRID_SIZE) gridLinesSvg += `<line x1="${minX}" y1="${y}" x2="${maxX}" y2="${y}" stroke="rgba(0,0,0,0.1)" stroke-width="0.5" />`; svgElements.push(gridLinesSvg);} if (state.view.showRings && state.selfCircle) { let ringsSvg=''; CONCENTRIC_RING_RADII.forEach(radius => ringsSvg += `<circle cx="${state.selfCircle.x}" cy="${state.selfCircle.y}" r="${radius}" fill="none" stroke="rgba(100,100,100,0.2)" stroke-width="1" stroke-dasharray="5,5" />`); svgElements.push(ringsSvg);} addCircleToSvg(state.selfCircle, svgElements, tempCtx); state.aspects.forEach(aspect => { if (aspect.connectionToSelf && aspect.connectionToSelf !== 'none') { const angle = Math.atan2(state.selfCircle.y-aspect.y, state.selfCircle.x-aspect.x); const startX = aspect.x+aspect.radius*Math.cos(angle); const startY = aspect.y+aspect.radius*Math.sin(angle); const endX = state.selfCircle.x-state.selfCircle.radius*Math.cos(angle); const endY = state.selfCircle.y-state.selfCircle.radius*Math.sin(angle); const dashArray = aspect.connectionToSelf==='dashed' ? 'stroke-dasharray="10,5"':''; svgElements.push(`<line x1="${startX.toFixed(2)}" y1="${startY.toFixed(2)}" x2="${endX.toFixed(2)}" y2="${endY.toFixed(2)}" stroke="#374151" stroke-width="2" ${dashArray} />`);}}); state.aspects.forEach(aspect => addCircleToSvg(aspect, svgElements, tempCtx)); svgElements.push(`</g>`); const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${worldWidth}" height="${worldHeight}" viewBox="0 0 ${worldWidth} ${worldHeight}" style="background-color: #ffffff;">${svgElements.join('')}</svg>`; const svgBlob = new Blob([svgContent], {type:'image/svg+xml;charset=utf-8'}); const svgUrl = URL.createObjectURL(svgBlob); const a=document.createElement('a'); a.href=svgUrl; a.download='fems-map.svg'; a.click(); a.remove(); URL.revokeObjectURL(svgUrl); showMessage('SVG Exported', 'Your map has been prepared for download.');});
+        exportSvgButton.addEventListener('click', () => { let minX=state.selfCircle.x-state.selfCircle.radius, minY=state.selfCircle.y-state.selfCircle.radius, maxX=state.selfCircle.x+state.selfCircle.radius, maxY=state.selfCircle.y+state.selfCircle.radius; state.aspects.forEach(a => {minX=Math.min(minX, a.x-a.radius); minY=Math.min(minY, a.y-a.radius); maxX=Math.max(maxX, a.x+a.radius); maxY=Math.max(maxY, a.y+a.radius);}); const padding=50; minX-=padding; minY-=padding; maxX+=padding; maxY+=padding; const worldWidth = maxX-minX; const worldHeight = maxY-minY; let svgElements=[]; const tempCtx=document.createElement('canvas').getContext('2d'); svgElements.push(`<g transform="translate(${-minX}, ${-minY})">`); if (state.view.showGrid) { let gridLinesSvg=''; for (let x=Math.floor(minX/GRID_SIZE)*GRID_SIZE; x<=maxX; x+=GRID_SIZE) gridLinesSvg += `<line x1="${x}" y1="${minY}" x2="${x}" y2="${maxY}" stroke="rgba(0,0,0,0.1)" stroke-width="0.5" />`; for (let y=Math.floor(minY/GRID_SIZE)*GRID_SIZE; y<=maxY; y+=GRID_SIZE) gridLinesSvg += `<line x1="${minX}" y1="${y}" x2="${maxX}" y2="${y}" stroke="rgba(0,0,0,0.1)" stroke-width="0.5" />`; svgElements.push(gridLinesSvg);} if (state.view.showRings && state.selfCircle) { let ringsSvg=''; CONCENTRIC_RING_RADII.forEach(radius => ringsSvg += `<circle cx="${state.selfCircle.x}" cy="${state.selfCircle.y}" r="${radius}" fill="none" stroke="rgba(138, 129, 122, 0.2)" stroke-width="1" stroke-dasharray="4,8" />`); svgElements.push(ringsSvg);} addCircleToSvg(state.selfCircle, svgElements, tempCtx); state.aspects.forEach(aspect => { if (aspect.connectionToSelf && aspect.connectionToSelf !== 'none') { const angle = Math.atan2(state.selfCircle.y-aspect.y, state.selfCircle.x-aspect.x); const startX = aspect.x+aspect.radius*Math.cos(angle); const startY = aspect.y+aspect.radius*Math.sin(angle); const endX = state.selfCircle.x-state.selfCircle.radius*Math.cos(angle); const endY = state.selfCircle.y-state.selfCircle.radius*Math.sin(angle); const dashArray = aspect.connectionToSelf==='dashed' ? 'stroke-dasharray="10,5"':''; svgElements.push(`<line x1="${startX.toFixed(2)}" y1="${startY.toFixed(2)}" x2="${endX.toFixed(2)}" y2="${endY.toFixed(2)}" stroke="#4a443f" stroke-width="2" ${dashArray} />`);}}); state.aspects.forEach(aspect => addCircleToSvg(aspect, svgElements, tempCtx)); svgElements.push(`</g>`); const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${worldWidth}" height="${worldHeight}" viewBox="0 0 ${worldWidth} ${worldHeight}" style="background-color: #FDFBF6;">${svgElements.join('')}</svg>`; const svgBlob = new Blob([svgContent], {type:'image/svg+xml;charset=utf-8'}); const svgUrl = URL.createObjectURL(svgBlob); const a=document.createElement('a'); a.href=svgUrl; a.download='fems-map.svg'; a.click(); a.remove(); URL.revokeObjectURL(svgUrl); showMessage('SVG Exported', 'Your map has been prepared for download.');});
         
         // --- Event Listeners ---
         canvas.addEventListener('mousedown', (e) => { e.preventDefault(); handleMouseDown(e); });
@@ -994,6 +954,68 @@
         if(document.getElementById('help-modal-copyright-year')) {
             document.getElementById('help-modal-copyright-year').textContent = new Date().getFullYear();
         }
+        
+        // Repopulate quick help modal content
+        const quickHelpContent = document.getElementById('quickHelpContent');
+        if (quickHelpContent) {
+           quickHelpContent.innerHTML = `<p><strong>Fuzzy Emotion Mapping System (FEMS)</strong> is a visual tool for exploring your emotional landscape.</p>
+    <p class="font-semibold">The Purpose of FEMS:</p>
+    <p class="ml-4">FEMS is a visual and intuitive way to make emotional clarity visible. Developed as part of the Clarity Navigation framework, it helps you gently explore your internal landscape by mapping how emotions resonate, relate, and move in relation to your self. The term "fuzzy" reflects the intuitive, non-binary nature of emotion—they blend, pulse, and shift without hard edges. This tool is not for diagnosis; it's an invitation to reflect, externalize, and better understand what already lives within you. It’s not about controlling your emotions, but about making contact with them.</p>
+    <p><strong>Core Concepts:</strong></p>
+    <ul class="list-disc list-inside ml-4">
+        <li><strong>SELF Node:</strong> The central circle representing your current emotional state.</li>
+        <li><strong>Aspects:</strong> Circles around SELF representing emotional influences (thoughts, people, memories, etc.).</li>
+        <li><strong>Size:</strong> Emotional intensity of an Aspect (larger = stronger).</li>
+        <li><strong>Color:</strong> Emotional tone (e.g., Green for calm, Red for stress). Hover over color buttons for tooltips.</li>
+        <li><strong>Distance to SELF:</strong> Relevance or emotional presence (closer = more pressing).</li>
+        <li><strong>Lines to SELF:</strong> Solid for strong influence, Dashed for subtle/uncertain.</li>
+        <li><strong>Aura Symbols:</strong> Optional emotional modifiers (e.g., 🔒 Blocked, 🌀 Spiraling). Hover for tooltips.</li>
+        <li><strong>Waveforms:</strong> Sine wave for resonance (feels good), Sawtooth for dissonance (feels off). Amplitude shows strength. Waveform color is high-contrast (typically black) for readability.</li>
+    </ul>
+    <p><strong>Basic Interactions:</strong></p>
+    <ul class="list-disc list-inside ml-4">
+        <li><strong>Add Aspect:</strong> Click the "Add Aspect" button.</li>
+        <li><strong>Starter Vocabulary:</strong> Use the collapsible vocabulary list to quickly add or rename aspects.</li>
+        <li><strong>Move Aspect:</strong> Click and drag an Aspect circle.</li>
+        <li><strong>Edit Properties:</strong> Click an Aspect or SELF to select it. Use the controls on the left to edit text, size, color, etc.</li>
+        <li><strong>Edit Text (Quick):</strong> Double-click an Aspect to open a text input dialog. (Renaming SELF is disabled).</li>
+        <li><strong>Pan Canvas:</strong> Click and drag the canvas background.</li>
+        <li><strong>Zoom Canvas:</strong> Use your mouse wheel over the canvas. Use +/- buttons for finer control. On touch devices, use pinch-to-zoom.</li>
+        <li><strong>Layering:</strong> Use "Bring to Front" / "Send to Back" in the edit panel to control which aspects overlap others.</li>
+        <li><strong>Delete Aspect:</strong> Select an Aspect and click "Delete Aspect". Use "Undelete" to recover the last one.</li>
+        <li><strong>Clear Map:</strong> Resets the entire map to start fresh.</li>
+    </ul>
+    <p><strong>Keyboard Shortcuts:</strong></p>
+    <ul class="list-disc list-inside ml-4">
+        <li><strong>A:</strong> Add a new Aspect.</li>
+        <li><strong>Delete / Backspace:</strong> Delete the selected Aspect.</li>
+        <li><strong>C:</strong> Center the view on the SELF node.</li>
+        <li><strong>R:</strong> Toggle the distance rings.</li>
+        <li><strong>G:</strong> Toggle the grid snapping.</li>
+        <li><strong>+ / =:</strong> Zoom in.</li>
+        <li><strong>-:</strong> Zoom out.</li>
+        <li><strong>0:</strong> Reset the view completely.</li>
+        <li><strong>? / /:</strong> Open this Quick Help window.</li>
+        <li><strong>Ctrl/Cmd + Z:</strong> Undelete the last deleted Aspect.</li>
+        <li><strong>Ctrl/Cmd + S:</strong> Save the current map as a JSON file.</li>
+        <li><strong>Ctrl/Cmd + O:</strong> Open the dialog to load a map from a JSON file.</li>
+    </ul>
+    <p>Use "Generate Narrative" to get a text-based summary of your map. Explore other options for saving, loading, and exporting your map.</p>
+    <p class="pt-2 mt-2 border-t border-slate-200">
+        <strong>Usage, Licensing & Support:</strong><br>
+        This tool is free for personal, non-commercial use. If you find it valuable, please consider
+        <a href="https://ko-fi.com/thorstenbecker" target="_blank" rel="noopener noreferrer" class="btn-link">donating to support its development</a>.
+        For all other uses, including commercial, academic, or therapeutic, a license is required. Please contact
+        <a href="mailto:hello@thorstenbecker.de" class="btn-link">hello@thorstenbecker.de</a> to inquire.
+    </p>
+    <p class="pt-3 mt-3 border-t border-slate-200 text-center text-xs text-gray-500">
+        &copy; <span id="help-modal-copyright-year"></span> Thorsten Becker, <a href="https://www.thorstenbecker.de" target="_blank" rel="noopener noreferrer" class="btn-link">www.thorstenbecker.de</a>
+    </p>`;
+            if(document.getElementById('help-modal-copyright-year')) {
+                document.getElementById('help-modal-copyright-year').textContent = new Date().getFullYear();
+            }
+        }
+        
         toggleRingsCheckbox.checked = state.view.showRings;
         toggleGridCheckbox.checked = state.view.showGrid;
         undeleteAspectButton.disabled = !state.lastDeletedAspect;
@@ -1009,7 +1031,6 @@
         updateControls();
         canvas.setAttribute('tabindex', '-1');
         
-        // Ensure the canvas has focus once the page is fully loaded to enable keyboard shortcuts immediately.
         window.onload = () => {
             canvas.focus();
         };
