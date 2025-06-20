@@ -322,7 +322,7 @@
     </div>
 
     <!-- Main Canvas Area -->
-    <div class="flex-1 p-4 order-1 md:order-2 flex justify-center items-center">
+    <div class="flex-1 p-4 order-1 md:order-2 flex justify-center items-center min-h-0">
         <div class="canvas-container soft-shadow-xl">
              <canvas id="backgroundCanvas"></canvas>
              <canvas id="femsCanvas" class="bg-transparent"></canvas>
@@ -842,32 +842,132 @@
         loadMapInput.addEventListener('change', (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const mapData = JSON.parse(e.target.result); if (mapData.selfCircle && mapData.aspects && typeof mapData.nextAspectId !== 'undefined') { state.selfCircle = mapData.selfCircle; state.aspects = mapData.aspects; state.nextAspectId = mapData.nextAspectId; const vo = mapData.viewOptions||{}; state.view.showRings = vo.showRings===undefined ? true : vo.showRings; state.view.showGrid = vo.showGrid===undefined ? false : vo.showGrid; const tr = mapData.transform||{}; state.view.panX = tr.panX||0; state.view.panY = tr.panY||0; state.view.scale = tr.scale||1.0; state.lastDeletedAspect=null; state.selectedCircleId=null; state.ui.hasShownSelfRenameWarning = false; state.ui.hasShownClusterWarning = false; resizeCanvas(); updateControls(); showMessage('Map Loaded', 'Map data has been loaded successfully.');} else showMessage('Load Error', 'Invalid map data file.');} catch (error) { console.error("Error loading map:", error); showMessage('Load Error', 'Could not parse map data.');} finally { loadMapInput.value = '';}}; reader.readAsText(file);});
         async function dataURLtoBlob(dataurl) { const arr = dataurl.split(','); const mimeMatch = arr[0].match(/:(.*?);/); if (!mimeMatch) { console.error("Invalid data URL: mime type not found"); return null; } const mime = mimeMatch[1]; const bstr = atob(arr[1]); let n = bstr.length; const u8arr = new Uint8Array(n); while (n--) { u8arr[n] = bstr.charCodeAt(n); } return new Blob([u8arr], { type: mime }); }
         
-        exportPngButton.addEventListener('click', async () => { 
-            const previouslySelectedId=state.selectedCircleId; 
-            state.selectedCircleId=null;
+        function getMapBoundingBox() {
+            if (!state.selfCircle) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+            let minX = state.selfCircle.x - state.selfCircle.radius;
+            let minY = state.selfCircle.y - state.selfCircle.radius;
+            let maxX = state.selfCircle.x + state.selfCircle.radius;
+            let maxY = state.selfCircle.y + state.selfCircle.radius;
             
-            const exportCanvas = document.createElement('canvas');
-            exportCanvas.width = canvas.width;
-            exportCanvas.height = canvas.height;
-            const exportCtx = exportCanvas.getContext('2d');
+            state.aspects.forEach(a => {
+                minX = Math.min(minX, a.x - a.radius);
+                minY = Math.min(minY, a.y - a.radius);
+                maxX = Math.max(maxX, a.x + a.radius);
+                maxY = Math.max(maxY, a.y + a.radius);
+            });
 
-            exportCtx.drawImage(backgroundCanvas, 0, 0);
-            
-            const tempPanX = state.view.panX; const tempPanY = state.view.panY; const tempScale = state.view.scale;
+            const padding = 50;
+            return {
+                minX: minX - padding,
+                minY: minY - padding,
+                maxX: maxX + padding,
+                maxY: maxY + padding,
+            };
+        }
+
+        exportPngButton.addEventListener('click', async () => {
+            const previouslySelectedId = state.selectedCircleId;
+            state.selectedCircleId = null;
+            draw();
+
+            const bounds = getMapBoundingBox();
+            const exportWidth = bounds.maxX - bounds.minX;
+            const exportHeight = bounds.maxY - bounds.minY;
+
+            const exportCanvas = document.createElement('canvas');
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            exportCanvas.width = exportWidth * devicePixelRatio;
+            exportCanvas.height = exportHeight * devicePixelRatio;
+            const exportCtx = exportCanvas.getContext('2d');
+            exportCtx.scale(devicePixelRatio, devicePixelRatio);
+
+            exportCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-main').trim();
+            exportCtx.fillRect(0, 0, exportWidth, exportHeight);
+
             exportCtx.save();
-            exportCtx.translate(tempPanX, tempPanY); 
-            exportCtx.scale(tempScale, tempScale); 
-            drawCircle(state.selfCircle, exportCtx); 
-            state.aspects.forEach(aspect => { if (aspect.connectionToSelf && aspect.connectionToSelf !== 'none') drawLine(aspect, state.selfCircle, aspect.connectionToSelf, exportCtx); }); 
-            state.aspects.forEach(c => drawCircle(c, exportCtx)); 
+            exportCtx.translate(-bounds.minX, -bounds.minY);
+
+            const originalScale = state.view.scale;
+            state.view.scale = 1.0;
+
+            if (state.view.showRings) {
+                exportCtx.strokeStyle = 'rgba(138, 129, 122, 0.2)';
+                exportCtx.lineWidth = 1;
+                exportCtx.setLineDash([4, 8]);
+                CONCENTRIC_RING_RADII.forEach(radius => {
+                    exportCtx.beginPath();
+                    exportCtx.arc(state.selfCircle.x, state.selfCircle.y, radius, 0, Math.PI * 2);
+                    exportCtx.stroke();
+                });
+                exportCtx.setLineDash([]);
+            }
+
+            if (state.view.showGrid) {
+                exportCtx.strokeStyle = 'rgba(138, 129, 122, 0.15)';
+                exportCtx.lineWidth = 0.5;
+                const firstGridX = Math.floor(bounds.minX / GRID_SIZE) * GRID_SIZE;
+                const firstGridY = Math.floor(bounds.minY / GRID_SIZE) * GRID_SIZE;
+                for (let x = firstGridX; x <= bounds.maxX; x += GRID_SIZE) {
+                    exportCtx.beginPath();
+                    exportCtx.moveTo(x, bounds.minY);
+                    exportCtx.lineTo(x, bounds.maxY);
+                    exportCtx.stroke();
+                }
+                for (let y = firstGridY; y <= bounds.maxY; y += GRID_SIZE) {
+                    exportCtx.beginPath();
+                    exportCtx.moveTo(bounds.minX, y);
+                    exportCtx.lineTo(bounds.maxX, y);
+                    exportCtx.stroke();
+                }
+            }
+            
+            drawCircle(state.selfCircle, exportCtx);
+            state.aspects.forEach(aspect => {
+                if (aspect.connectionToSelf && aspect.connectionToSelf !== 'none') {
+                    drawLine(aspect, state.selfCircle, aspect.connectionToSelf, exportCtx);
+                }
+            });
+            state.aspects.forEach(c => drawCircle(c, exportCtx));
+            
+            state.view.scale = originalScale;
             exportCtx.restore();
 
-            const dataURL=exportCanvas.toDataURL('image/png'); 
+            const dataURL = exportCanvas.toDataURL('image/png');
+            if (window.showSaveFilePicker) {
+                try {
+                    const blob = await dataURLtoBlob(dataURL);
+                    if (!blob) throw new Error('Could not convert canvas to Blob.');
+                    const fileHandle = await window.showSaveFilePicker({
+                        suggestedName: 'fems-map.png',
+                        types: [{ description: 'PNG Image', accept: { 'image/png': ['.png'] } }],
+                    });
+                    const writableStream = await fileHandle.createWritable();
+                    await writableStream.write(blob);
+                    await writableStream.close();
+                    showMessage('PNG Exported', `Map exported as ${fileHandle.name}.`);
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        const a = document.createElement('a');
+                        a.href = dataURL;
+                        a.download = 'fems-map.png';
+                        a.click();
+                        a.remove();
+                        showMessage('PNG Exported (Fallback)', 'Your map has been prepared for download.');
+                    }
+                }
+            } else {
+                const a = document.createElement('a');
+                a.href = dataURL;
+                a.download = 'fems-map.png';
+                a.click();
+                a.remove();
+                showMessage('PNG Exported', 'Your map has been prepared for download.');
+            }
             
-            if (window.showSaveFilePicker) { try { const blob = await dataURLtoBlob(dataURL); if (!blob) { showMessage('Export Error', 'Could not convert canvas to Blob.'); state.selectedCircleId=previouslySelectedId; drawAll(); return; } const fileHandle = await window.showSaveFilePicker({ suggestedName: 'fems-map.png', types: [{ description: 'PNG Image', accept: { 'image/png': ['.png'] }, }], }); const writableStream = await fileHandle.createWritable(); await writableStream.write(blob); await writableStream.close(); showMessage('PNG Exported', `Map exported as ${fileHandle.name}.`); } catch (err) { if (err.name !== 'AbortError') { const a = document.createElement('a'); a.href = dataURL; a.download = 'fems-map.png'; a.click(); a.remove(); showMessage('PNG Exported (Fallback)', 'Your map has been prepared for download using a fallback method.'); } else { console.info('PNG export aborted by user.'); } } } else { const a=document.createElement('a'); a.href=dataURL; a.download='fems-map.png'; a.click(); a.remove(); showMessage('PNG Exported', 'Your map has been prepared for download.'); } 
-            state.selectedCircleId=previouslySelectedId;
-            drawAll(); 
+            state.selectedCircleId = previouslySelectedId;
+            drawAll();
         });
+
 
         function escapeXml(unsafe) { return unsafe.replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','\'':'&apos;','"':'&quot;'}[c]));}
         
@@ -927,7 +1027,56 @@
             }
         }
 
-        exportSvgButton.addEventListener('click', () => { let minX=state.selfCircle.x-state.selfCircle.radius, minY=state.selfCircle.y-state.selfCircle.radius, maxX=state.selfCircle.x+state.selfCircle.radius, maxY=state.selfCircle.y+state.selfCircle.radius; state.aspects.forEach(a => {minX=Math.min(minX, a.x-a.radius); minY=Math.min(minY, a.y-a.radius); maxX=Math.max(maxX, a.x+a.radius); maxY=Math.max(maxY, a.y+a.radius);}); const padding=50; minX-=padding; minY-=padding; maxX+=padding; maxY+=padding; const worldWidth = maxX-minX; const worldHeight = maxY-minY; let svgElements=[]; const tempCtx=document.createElement('canvas').getContext('2d'); svgElements.push(`<g transform="translate(${-minX}, ${-minY})">`); if (state.view.showGrid) { let gridLinesSvg=''; for (let x=Math.floor(minX/GRID_SIZE)*GRID_SIZE; x<=maxX; x+=GRID_SIZE) gridLinesSvg += `<line x1="${x}" y1="${minY}" x2="${x}" y2="${maxY}" stroke="rgba(0,0,0,0.1)" stroke-width="0.5" />`; for (let y=Math.floor(minY/GRID_SIZE)*GRID_SIZE; y<=maxY; y+=GRID_SIZE) gridLinesSvg += `<line x1="${minX}" y1="${y}" x2="${maxX}" y2="${y}" stroke="rgba(0,0,0,0.1)" stroke-width="0.5" />`; svgElements.push(gridLinesSvg);} if (state.view.showRings && state.selfCircle) { let ringsSvg=''; CONCENTRIC_RING_RADII.forEach(radius => ringsSvg += `<circle cx="${state.selfCircle.x}" cy="${state.selfCircle.y}" r="${radius}" fill="none" stroke="rgba(138, 129, 122, 0.2)" stroke-width="1" stroke-dasharray="4,8" />`); svgElements.push(ringsSvg);} addCircleToSvg(state.selfCircle, svgElements, tempCtx); state.aspects.forEach(aspect => { if (aspect.connectionToSelf && aspect.connectionToSelf !== 'none') { const angle = Math.atan2(state.selfCircle.y-aspect.y, state.selfCircle.x-aspect.x); const startX = aspect.x+aspect.radius*Math.cos(angle); const startY = aspect.y+aspect.radius*Math.sin(angle); const endX = state.selfCircle.x-state.selfCircle.radius*Math.cos(angle); const endY = state.selfCircle.y-state.selfCircle.radius*Math.sin(angle); const dashArray = aspect.connectionToSelf==='dashed' ? 'stroke-dasharray="10,5"':''; svgElements.push(`<line x1="${startX.toFixed(2)}" y1="${startY.toFixed(2)}" x2="${endX.toFixed(2)}" y2="${endY.toFixed(2)}" stroke="#4a443f" stroke-width="2" ${dashArray} />`);}}); state.aspects.forEach(aspect => addCircleToSvg(aspect, svgElements, tempCtx)); svgElements.push(`</g>`); const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${worldWidth}" height="${worldHeight}" viewBox="0 0 ${worldWidth} ${worldHeight}" style="background-color: #FDFBF6;">${svgElements.join('')}</svg>`; const svgBlob = new Blob([svgContent], {type:'image/svg+xml;charset=utf-8'}); const svgUrl = URL.createObjectURL(svgBlob); const a=document.createElement('a'); a.href=svgUrl; a.download='fems-map.svg'; a.click(); a.remove(); URL.revokeObjectURL(svgUrl); showMessage('SVG Exported', 'Your map has been prepared for download.');});
+        exportSvgButton.addEventListener('click', () => {
+            const bounds = getMapBoundingBox();
+            const worldWidth = bounds.maxX - bounds.minX;
+            const worldHeight = bounds.maxY - bounds.minY;
+
+            let svgElements = [];
+            const tempCtx = document.createElement('canvas').getContext('2d');
+            
+            svgElements.push(`<g transform="translate(${-bounds.minX}, ${-bounds.minY})">`);
+            
+            if (state.view.showGrid) {
+                let gridLinesSvg = '';
+                const firstGridX = Math.floor(bounds.minX / GRID_SIZE) * GRID_SIZE;
+                const firstGridY = Math.floor(bounds.minY / GRID_SIZE) * GRID_SIZE;
+                for (let x = firstGridX; x <= bounds.maxX; x += GRID_SIZE) gridLinesSvg += `<line x1="${x}" y1="${bounds.minY}" x2="${x}" y2="${bounds.maxY}" stroke="rgba(138, 129, 122, 0.15)" stroke-width="0.5" />`;
+                for (let y = firstGridY; y <= bounds.maxY; y += GRID_SIZE) gridLinesSvg += `<line x1="${bounds.minX}" y1="${y}" x2="${bounds.maxX}" y2="${y}" stroke="rgba(138, 129, 122, 0.15)" stroke-width="0.5" />`;
+                svgElements.push(gridLinesSvg);
+            }
+            if (state.view.showRings && state.selfCircle) {
+                let ringsSvg = '';
+                CONCENTRIC_RING_RADII.forEach(radius => ringsSvg += `<circle cx="${state.selfCircle.x}" cy="${state.selfCircle.y}" r="${radius}" fill="none" stroke="rgba(138, 129, 122, 0.2)" stroke-width="1" stroke-dasharray="4,8" />`);
+                svgElements.push(ringsSvg);
+            }
+            
+            addCircleToSvg(state.selfCircle, svgElements, tempCtx);
+            state.aspects.forEach(aspect => {
+                if (aspect.connectionToSelf && aspect.connectionToSelf !== 'none') {
+                    const angle = Math.atan2(state.selfCircle.y - aspect.y, state.selfCircle.x - aspect.x);
+                    const startX = aspect.x + aspect.radius * Math.cos(angle);
+                    const startY = aspect.y + aspect.radius * Math.sin(angle);
+                    const endX = state.selfCircle.x - state.selfCircle.radius * Math.cos(angle);
+                    const endY = state.selfCircle.y - state.selfCircle.radius * Math.sin(angle);
+                    const dashArray = aspect.connectionToSelf === 'dashed' ? 'stroke-dasharray="10,5"' : '';
+                    svgElements.push(`<line x1="${startX.toFixed(2)}" y1="${startY.toFixed(2)}" x2="${endX.toFixed(2)}" y2="${endY.toFixed(2)}" stroke="#4a443f" stroke-width="2" ${dashArray} />`);
+                }
+            });
+            state.aspects.forEach(aspect => addCircleToSvg(aspect, svgElements, tempCtx));
+            svgElements.push(`</g>`);
+            
+            const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${worldWidth}" height="${worldHeight}" viewBox="0 0 ${worldWidth} ${worldHeight}" style="background-color: ${getComputedStyle(document.documentElement).getPropertyValue('--bg-main').trim()};">${svgElements.join('')}</svg>`;
+            const svgBlob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+            const svgUrl = URL.createObjectURL(svgBlob);
+            const a = document.createElement('a');
+            a.href = svgUrl;
+            a.download = 'fems-map.svg';
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(svgUrl);
+            showMessage('SVG Exported', 'Your map has been prepared for download.');
+        });
         
         // --- Event Listeners ---
         canvas.addEventListener('mousedown', (e) => { e.preventDefault(); handleMouseDown(e); });
@@ -999,90 +1148,94 @@
         });
 
         // --- Initialisation ---
-        window.addEventListener('resize', resizeCanvas);
-        setCopyright();
-        populateVocabulary();
-        if(document.getElementById('help-modal-copyright-year')) {
-            document.getElementById('help-modal-copyright-year').textContent = new Date().getFullYear();
-        }
-        
-        // Repopulate quick help modal content
-        const quickHelpContent = document.getElementById('quickHelpContent');
-        if (quickHelpContent) {
-           quickHelpContent.innerHTML = `<p><strong>Fuzzy Emotion Mapping System (FEMS)</strong> is a visual tool for exploring your emotional landscape.</p>
-    <p class="font-semibold">The Purpose of FEMS:</p>
-    <p class="ml-4">FEMS is a visual and intuitive way to make emotional clarity visible. Developed as part of the Clarity Navigation framework, it helps you gently explore your internal landscape by mapping how emotions resonate, relate, and move in relation to your self. The term "fuzzy" reflects the intuitive, non-binary nature of emotion—they blend, pulse, and shift without hard edges. This tool is not for diagnosis; it's an invitation to reflect, externalize, and better understand what already lives within you. It’s not about controlling your emotions, but about making contact with them.</p>
-    <p><strong>Core Concepts:</strong></p>
-    <ul class="list-disc list-inside ml-4">
-        <li><strong>SELF Node:</strong> The central circle representing your current emotional state.</li>
-        <li><strong>Aspects:</strong> Circles around SELF representing emotional influences (thoughts, people, memories, etc.).</li>
-        <li><strong>Size:</strong> Emotional intensity of an Aspect (larger = stronger).</li>
-        <li><strong>Color:</strong> Emotional tone (e.g., Green for calm, Red for stress). Hover over color buttons for tooltips.</li>
-        <li><strong>Distance to SELF:</strong> Relevance or emotional presence (closer = more pressing).</li>
-        <li><strong>Lines to SELF:</strong> Solid for strong influence, Dashed for subtle/uncertain.</li>
-        <li><strong>Aura Symbols:</strong> Optional emotional modifiers (e.g., 🔒 Blocked, 🌀 Spiraling). Hover for tooltips.</li>
-        <li><strong>Waveforms:</strong> Sine wave for resonance (feels good), Sawtooth for dissonance (feels off). Amplitude shows strength. Waveform color is high-contrast (typically black) for readability.</li>
-    </ul>
-    <p><strong>Basic Interactions:</strong></p>
-    <ul class="list-disc list-inside ml-4">
-        <li><strong>Add Aspect:</strong> Click the "Add Aspect" button.</li>
-        <li><strong>Starter Vocabulary:</strong> Use the collapsible vocabulary list to quickly add or rename aspects.</li>
-        <li><strong>Move Aspect:</strong> Click and drag an Aspect circle.</li>
-        <li><strong>Edit Properties:</strong> Click an Aspect or SELF to select it. Use the controls on the left to edit text, size, color, etc.</li>
-        <li><strong>Edit Text (Quick):</strong> Double-click an Aspect to open a text input dialog. (Renaming SELF is disabled).</li>
-        <li><strong>Pan Canvas:</strong> Click and drag the canvas background.</li>
-        <li><strong>Zoom Canvas:</strong> Use your mouse wheel over the canvas. Use +/- buttons for finer control. On touch devices, use pinch-to-zoom.</li>
-        <li><strong>Layering:</strong> Use "Bring to Front" / "Send to Back" in the edit panel to control which aspects overlap others.</li>
-        <li><strong>Delete Aspect:</strong> Select an Aspect and click "Delete Aspect". Use "Undelete" to recover the last one.</li>
-        <li><strong>Clear Map:</strong> Resets the entire map to start fresh.</li>
-    </ul>
-    <p><strong>Keyboard Shortcuts:</strong></p>
-    <ul class="list-disc list-inside ml-4">
-        <li><strong>A:</strong> Add a new Aspect.</li>
-        <li><strong>Delete / Backspace:</strong> Delete the selected Aspect.</li>
-        <li><strong>C:</strong> Center the view on the SELF node.</li>
-        <li><strong>R:</strong> Toggle the distance rings.</li>
-        <li><strong>G:</strong> Toggle the grid snapping.</li>
-        <li><strong>+ / =:</strong> Zoom in.</li>
-        <li><strong>-:</strong> Zoom out.</li>
-        <li><strong>0:</strong> Reset the view completely.</li>
-        <li><strong>? / /:</strong> Open this Quick Help window.</li>
-        <li><strong>Ctrl/Cmd + Z:</strong> Undelete the last deleted Aspect.</li>
-        <li><strong>Ctrl/Cmd + S:</strong> Save the current map as a JSON file.</li>
-        <li><strong>Ctrl/Cmd + O:</strong> Open the dialog to load a map from a JSON file.</li>
-    </ul>
-    <p>Use "Generate Narrative" to get a text-based summary of your map. Explore other options for saving, loading, and exporting your map.</p>
-    <p class="pt-2 mt-2 border-t border-slate-200">
-        <strong>Usage, Licensing & Support:</strong><br>
-        This tool is free for personal, non-commercial use. If you find it valuable, please consider
-        <a href="https://ko-fi.com/thorstenbecker" target="_blank" rel="noopener noreferrer" class="btn-link">donating to support its development</a>.
-        For all other uses, including commercial, academic, or therapeutic, a license is required. Please contact
-        <a href="mailto:hello@thorstenbecker.de" class="btn-link">hello@thorstenbecker.de</a> to inquire.
-    </p>
-    <p class="pt-3 mt-3 border-t border-slate-200 text-center text-xs text-gray-500">
-        &copy; <span id="help-modal-copyright-year"></span> Thorsten Becker, <a href="https://www.thorstenbecker.de" target="_blank" rel="noopener noreferrer" class="btn-link">www.thorstenbecker.de</a>
-    </p>`;
+        function initializeApp() {
+            setCopyright();
+            populateVocabulary();
             if(document.getElementById('help-modal-copyright-year')) {
                 document.getElementById('help-modal-copyright-year').textContent = new Date().getFullYear();
             }
-        }
-        
-        toggleRingsCheckbox.checked = state.view.showRings;
-        toggleGridCheckbox.checked = state.view.showGrid;
-        undeleteAspectButton.disabled = !state.lastDeletedAspect;
-        updateAspectCount();
-        canvas.setAttribute('tabindex', '0');
-        
-        document.fonts.ready.then(() => {
-            resizeCanvas();
-            canvas.focus();
-        }).catch((e) => {
-            console.warn("Font loading error, resizing canvas immediately.", e);
-            resizeCanvas();
-            canvas.focus();
-        });
+            
+            // Repopulate quick help modal content
+            const quickHelpContent = document.getElementById('quickHelpContent');
+            if (quickHelpContent) {
+            quickHelpContent.innerHTML = `<p><strong>Fuzzy Emotion Mapping System (FEMS)</strong> is a visual tool for exploring your emotional landscape.</p>
+        <p class="font-semibold">The Purpose of FEMS:</p>
+        <p class="ml-4">FEMS is a visual and intuitive way to make emotional clarity visible. Developed as part of the Clarity Navigation framework, it helps you gently explore your internal landscape by mapping how emotions resonate, relate, and move in relation to your self. The term "fuzzy" reflects the intuitive, non-binary nature of emotion—they blend, pulse, and shift without hard edges. This tool is not for diagnosis; it's an invitation to reflect, externalize, and better understand what already lives within you. It’s not about controlling your emotions, but about making contact with them.</p>
+        <p><strong>Core Concepts:</strong></p>
+        <ul class="list-disc list-inside ml-4">
+            <li><strong>SELF Node:</strong> The central circle representing your current emotional state.</li>
+            <li><strong>Aspects:</strong> Circles around SELF representing emotional influences (thoughts, people, memories, etc.).</li>
+            <li><strong>Size:</strong> Emotional intensity of an Aspect (larger = stronger).</li>
+            <li><strong>Color:</strong> Emotional tone (e.g., Green for calm, Red for stress). Hover over color buttons for tooltips.</li>
+            <li><strong>Distance to SELF:</strong> Relevance or emotional presence (closer = more pressing).</li>
+            <li><strong>Lines to SELF:</strong> Solid for strong influence, Dashed for subtle/uncertain.</li>
+            <li><strong>Aura Symbols:</strong> Optional emotional modifiers (e.g., 🔒 Blocked, 🌀 Spiraling). Hover for tooltips.</li>
+            <li><strong>Waveforms:</strong> Sine wave for resonance (feels good), Sawtooth for dissonance (feels off). Amplitude shows strength. Waveform color is high-contrast (typically black) for readability.</li>
+        </ul>
+        <p><strong>Basic Interactions:</strong></p>
+        <ul class="list-disc list-inside ml-4">
+            <li><strong>Add Aspect:</strong> Click the "Add Aspect" button.</li>
+            <li><strong>Starter Vocabulary:</strong> Use the collapsible vocabulary list to quickly add or rename aspects.</li>
+            <li><strong>Move Aspect:</strong> Click and drag an Aspect circle.</li>
+            <li><strong>Edit Properties:</strong> Click an Aspect or SELF to select it. Use the controls on the left to edit text, size, color, etc.</li>
+            <li><strong>Edit Text (Quick):</strong> Double-click an Aspect to open a text input dialog. (Renaming SELF is disabled).</li>
+            <li><strong>Pan Canvas:</strong> Click and drag the canvas background.</li>
+            <li><strong>Zoom Canvas:</strong> Use your mouse wheel over the canvas. Use +/- buttons for finer control. On touch devices, use pinch-to-zoom.</li>
+            <li><strong>Layering:</strong> Use "Bring to Front" / "Send to Back" in the edit panel to control which aspects overlap others.</li>
+            <li><strong>Delete Aspect:</strong> Select an Aspect and click "Delete Aspect". Use "Undelete" to recover the last one.</li>
+            <li><strong>Clear Map:</strong> Resets the entire map to start fresh.</li>
+        </ul>
+        <p><strong>Keyboard Shortcuts:</strong></p>
+        <ul class="list-disc list-inside ml-4">
+            <li><strong>A:</strong> Add a new Aspect.</li>
+            <li><strong>Delete / Backspace:</strong> Delete the selected Aspect.</li>
+            <li><strong>C:</strong> Center the view on the SELF node.</li>
+            <li><strong>R:</strong> Toggle the distance rings.</li>
+            <li><strong>G:</strong> Toggle the grid snapping.</li>
+            <li><strong>+ / =:</strong> Zoom in.</li>
+            <li><strong>-:</strong> Zoom out.</li>
+            <li><strong>0:</strong> Reset the view completely.</li>
+            <li><strong>? / /:</strong> Open this Quick Help window.</li>
+            <li><strong>Ctrl/Cmd + Z:</strong> Undelete the last deleted Aspect.</li>
+            <li><strong>Ctrl/Cmd + S:</strong> Save the current map as a JSON file.</li>
+            <li><strong>Ctrl/Cmd + O:</strong> Open the dialog to load a map from a JSON file.</li>
+        </ul>
+        <p>Use "Generate Narrative" to get a text-based summary of your map. Explore other options for saving, loading, and exporting your map.</p>
+        <p class="pt-2 mt-2 border-t border-slate-200">
+            <strong>Usage, Licensing & Support:</strong><br>
+            This tool is free for personal, non-commercial use. If you find it valuable, please consider
+            <a href="https://ko-fi.com/thorstenbecker" target="_blank" rel="noopener noreferrer" class="btn-link">donating to support its development</a>.
+            For all other uses, including commercial, academic, or therapeutic, a license is required. Please contact
+            <a href="mailto:hello@thorstenbecker.de" class="btn-link">hello@thorstenbecker.de</a> to inquire.
+        </p>
+        <p class="pt-3 mt-3 border-t border-slate-200 text-center text-xs text-gray-500">
+            &copy; <span id="help-modal-copyright-year"></span> Thorsten Becker, <a href="https://www.thorstenbecker.de" target="_blank" rel="noopener noreferrer" class="btn-link">www.thorstenbecker.de</a>
+        </p>`;
+                if(document.getElementById('help-modal-copyright-year')) {
+                    document.getElementById('help-modal-copyright-year').textContent = new Date().getFullYear();
+                }
+            }
+            
+            toggleRingsCheckbox.checked = state.view.showRings;
+            toggleGridCheckbox.checked = state.view.showGrid;
+            undeleteAspectButton.disabled = !state.lastDeletedAspect;
+            updateAspectCount();
+            canvas.setAttribute('tabindex', '0');
+            
+            document.fonts.ready.then(() => {
+                resizeCanvas();
+            }).catch((e) => {
+                console.warn("Font loading error, resizing canvas immediately.", e);
+                resizeCanvas();
+            });
 
-        updateControls();
+            window.addEventListener('resize', resizeCanvas);
+            canvas.focus();
+            updateControls();
+        }
+
+        initializeApp();
+
 </script>
 </body>
 </html>
