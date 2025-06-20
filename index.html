@@ -224,7 +224,7 @@
             </div>
 
             <!-- Aspect Controls -->
-            <div class="pt-4 border-t border-slate-200 space-y-2 px-2">
+            <div id="aspectControls" class="pt-4 border-t border-slate-200 space-y-2 px-2">
                 <h2 class="text-lg font-medium">Aspect Controls</h2>
                 <button id="addAspectButton" class="w-full btn btn-primary soft-shadow">Add Aspect</button>
                 <button id="undeleteAspectButton" class="w-full btn btn-warning soft-shadow" disabled>Undelete Last Aspect</button>
@@ -345,6 +345,7 @@
         let canvasContainer = canvas.parentElement;
 
         // --- DOM Elements ---
+        const aspectControls = document.getElementById('aspectControls');
         const addAspectButton = document.getElementById('addAspectButton');
         const undeleteAspectButton = document.getElementById('undeleteAspectButton');
         const clearMapButton = document.getElementById('clearMapButton');
@@ -734,7 +735,10 @@
                     selfColorPaletteContainer.querySelectorAll('.color-palette-button').forEach(btn => btn.classList.toggle('selected', btn.dataset.color === selectedCircle.color));
                 } else { // An aspect is selected
                     selfControls.classList.add('hidden');
+                    
+                    const wasHidden = selectedAspectControls.classList.contains('hidden');
                     selectedAspectControls.classList.remove('hidden');
+
                     selectedAspectName.textContent = selectedCircle.text.substring(0,20) + (selectedCircle.text.length > 20 ? '...':'');
                     aspectText.value = selectedCircle.text;
                     aspectSize.value = selectedCircle.radius;
@@ -749,12 +753,17 @@
                     waveAmplitude.disabled = wf.type === 'none';
                     document.getElementById('connectionControls').classList.remove('hidden');
                     
-                    setTimeout(() => {
-                        const controlPanelContent = document.querySelector('.control-panel-content');
-                        if (selectedAspectControls.offsetTop < controlPanelContent.scrollTop || (selectedAspectControls.offsetTop + selectedAspectControls.offsetHeight) > (controlPanelContent.scrollTop + controlPanelContent.clientHeight)) {
-                            controlPanelContent.scrollTo({ top: selectedAspectControls.offsetTop - 20, behavior: 'smooth' });
-                        }
-                    }, 50); 
+                    if (wasHidden) { // Only scroll if the panel was just revealed
+                        setTimeout(() => {
+                            const controlPanelContent = document.querySelector('.control-panel-content');
+                            const targetScrollTop = selectedAspectControls.offsetTop - 20;
+                             // Scroll to the top of the controls, with a little padding
+                            controlPanelContent.scrollTo({ 
+                                top: Math.max(0, targetScrollTop), // Ensure scroll position isn't negative
+                                behavior: 'smooth' 
+                            });
+                        }, 50); // A small delay ensures the element is rendered and has a position
+                    }
                 }
             } else {
                 selectedAspectControls.classList.add('hidden');
@@ -772,7 +781,7 @@
             while(queue.length > 0) { const current = queue.shift(); cluster.add(current); for (const other of state.aspects) { if (!visited.has(other.id) && doCirclesOverlap(current, other)) { visited.add(other.id); queue.push(other); } } }
             if (cluster.size > 3) { showMessage('Note on Clustering', "It looks like you're creating a cluster of several aspects. While this is possible, grouping more than three can make the map cluttered and hard to read."); state.ui.hasShownClusterWarning = true; }
         }
-        addAspectButton.addEventListener('click', () => { const devicePixelRatio = window.devicePixelRatio||1; const logicalCanvasWidth = canvas.width/devicePixelRatio; const logicalCanvasHeight = canvas.height/devicePixelRatio; let initialX = (logicalCanvasWidth/2 - state.view.panX)/state.view.scale + (Math.random()-0.5)*50/state.view.scale; let initialY = (logicalCanvasHeight/2 - state.view.panY)/state.view.scale + (Math.random()-0.5)*50/state.view.scale; const newAspect = {id:`aspect${state.nextAspectId++}`, text:`Aspect ${state.nextAspectId}`, x:initialX, y:initialY, radius:ASPECT_DEFAULT_RADIUS, color:ASPECT_DEFAULT_COLOR, isSelf:false, connectionToSelf:null, aura:null, waveform:{type:'none',amplitude:10}}; if (state.view.showGrid) { newAspect.x = Math.round(newAspect.x/GRID_SIZE)*GRID_SIZE; newAspect.y = Math.round(newAspect.y/GRID_SIZE)*GRID_SIZE;} state.aspects.push(newAspect); state.selectedCircleId = newAspect.id; updateControls(); draw();});
+        addAspectButton.addEventListener('click', () => { const devicePixelRatio = window.devicePixelRatio||1; const logicalCanvasWidth = canvas.width/devicePixelRatio; const logicalCanvasHeight = canvas.height/devicePixelRatio; let initialX = (logicalCanvasWidth/2 - state.view.panX)/state.view.scale + (Math.random()-0.5)*50/state.view.scale; let initialY = (logicalCanvasHeight/2 - state.view.panY)/state.view.scale + (Math.random()-0.5)*50/state.view.scale; const newAspect = {id:`aspect${state.nextAspectId++}`, text:`Aspect ${state.nextAspectId}`, x:initialX, y:initialY, radius:ASPECT_DEFAULT_RADIUS, color:ASPECT_DEFAULT_COLOR, isSelf:false, connectionToSelf:null, aura:null, waveform:{type:'none',amplitude:10}}; if (state.view.showGrid) { newAspect.x = Math.round(newAspect.x/GRID_SIZE)*GRID_SIZE; newAspect.y = Math.round(newAspect.y/GRID_SIZE)*GRID_SIZE;} state.aspects.push(newAspect); /* state.selectedCircleId = newAspect.id; */ updateControls(); draw();});
         aspectText.addEventListener('input', (e) => { const selectedCircle = getSelectedCircle(); if (selectedCircle && !selectedCircle.isSelf) {selectedCircle.text = e.target.value; selectedAspectName.textContent = selectedCircle.text.substring(0,20) + (selectedCircle.text.length > 20 ? '...':''); draw();}});
         aspectSize.addEventListener('input', (e) => { const selectedCircle = getSelectedCircle(); if (selectedCircle && !selectedCircle.isSelf) {selectedCircle.radius = parseInt(e.target.value); aspectSizeValue.textContent = selectedCircle.radius; draw();}});
         
@@ -796,7 +805,26 @@
         clearMapButton.addEventListener('click', () => { state.ui.isPerformingCriticalOperation = true; confirmClearModal.style.display = "block"; });
         confirmClearOkButton.onclick = () => { try { state.aspects = []; state.lastDeletedAspect = null; state.nextAspectId = 0; state.selectedCircleId = null; resetViewAndSelf(true); state.ui.hasShownSelfRenameWarning = false; state.ui.hasShownClusterWarning = false; updateControls(); drawAll(); } finally { confirmClearModal.style.display = "none"; state.ui.isPerformingCriticalOperation = false; } };
         confirmClearCancelButton.onclick = () => { confirmClearModal.style.display = "none"; state.ui.isPerformingCriticalOperation = false; };
-        deleteAspectButton.addEventListener('click', () => { const selectedCircle = getSelectedCircle(); if (selectedCircle && !selectedCircle.isSelf) { state.lastDeletedAspect = {...selectedCircle}; state.aspects = state.aspects.filter(aspect => aspect.id !== selectedCircle.id); state.selectedCircleId = null; updateControls(); draw();}});
+        deleteAspectButton.addEventListener('click', () => {
+            const selectedCircle = getSelectedCircle();
+            if (selectedCircle && !selectedCircle.isSelf) {
+                state.lastDeletedAspect = {...selectedCircle};
+                state.aspects = state.aspects.filter(aspect => aspect.id !== selectedCircle.id);
+                state.selectedCircleId = null;
+                updateControls();
+                draw();
+
+                // After deletion, focus back on the 'Add Aspect' area
+                const controlPanelContent = document.querySelector('.control-panel-content');
+                addAspectButton.focus({ preventScroll: true }); // Focus without the browser's default scroll
+                if (controlPanelContent && aspectControls) {
+                    controlPanelContent.scrollTo({
+                        top: aspectControls.offsetTop - 20, // scroll to the container of the button
+                        behavior: 'smooth'
+                    });
+                }
+            }
+        });
         undeleteAspectButton.addEventListener('click', () => { if (state.lastDeletedAspect) { state.aspects.push(state.lastDeletedAspect); state.selectedCircleId = state.lastDeletedAspect.id; state.lastDeletedAspect = null; updateControls(); draw();}});
         toggleRingsCheckbox.addEventListener('change', (e) => { state.view.showRings = e.target.checked; drawAll();});
         toggleGridCheckbox.addEventListener('change', (e) => { state.view.showGrid = e.target.checked; drawAll();});
@@ -963,7 +991,7 @@
                     const newAspect = { id: `aspect${state.nextAspectId++}`, text: term, x: initialX, y: initialY, radius: ASPECT_DEFAULT_RADIUS, color: ASPECT_DEFAULT_COLOR, isSelf: false, connectionToSelf: null, aura: null, waveform: { type: 'none', amplitude: 10 } };
                     if (state.view.showGrid) { newAspect.x = Math.round(newAspect.x / GRID_SIZE) * GRID_SIZE; newAspect.y = Math.round(newAspect.y / GRID_SIZE) * GRID_SIZE; }
                     state.aspects.push(newAspect);
-                    state.selectedCircleId = newAspect.id;
+                    // state.selectedCircleId = newAspect.id;
                     updateControls();
                     draw();
                 }
@@ -1043,20 +1071,18 @@
         toggleGridCheckbox.checked = state.view.showGrid;
         undeleteAspectButton.disabled = !state.lastDeletedAspect;
         updateAspectCount();
+        canvas.setAttribute('tabindex', '0');
         
         document.fonts.ready.then(() => {
             resizeCanvas();
+            canvas.focus();
         }).catch((e) => {
             console.warn("Font loading error, resizing canvas immediately.", e);
             resizeCanvas();
+            canvas.focus();
         });
 
         updateControls();
-        canvas.setAttribute('tabindex', '-1');
-        
-        window.onload = () => {
-            canvas.focus();
-        };
-    </script>
+</script>
 </body>
 </html>
