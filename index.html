@@ -286,17 +286,25 @@
 
             <!-- Data & Narrative -->
             <div class="pt-4 border-t border-slate-200 space-y-3 px-2">
-                <h2 class="text-lg font-medium">Map & Narrative</h2>
-                <button id="generateNarrativeButton" class="w-full btn btn-special-sky soft-shadow mb-2">Generate Narrative</button>
-                <button id="saveMapButton" class="w-full btn btn-success soft-shadow">Save Map (JSON)</button>
+                <h2 class="text-lg font-medium">Save, Load & Export</h2>
+                <button id="generateNarrativeButton" class="w-full btn btn-special-sky soft-shadow">Preview Narrative</button>
+                <button id="saveMapButton" class="w-full btn btn-success soft-shadow mt-2">Save Map (.json)</button>
                 <div>
-                    <label for="loadMapInput" class="block text-sm font-medium mb-1">Load Map (JSON):</label>
+                    <label for="loadMapInput" class="block text-sm font-medium mb-1 mt-2">Load Map (.json):</label>
                     <input type="file" id="loadMapInput" accept=".json" class="w-full text-sm text-secondary cursor-pointer">
                 </div>
-                <h2 class="text-lg font-medium mt-3">Export Map</h2>
-                <button id="exportPngButton" class="w-full btn btn-special-teal soft-shadow">Export as PNG</button>
-                <button id="exportSvgButton" class="w-full btn btn-special-purple soft-shadow mt-2">Export as SVG</button>
+                
+                <p class="text-xs text-slate-500 pt-2 border-t border-slate-300 mt-4">For viewing, sharing, or analysis.</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="exportPngButton" class="w-full btn btn-secondary soft-shadow">PNG</button>
+                    <button id="exportSvgButton" class="w-full btn btn-secondary soft-shadow">SVG</button>
+                    <button id="exportNarrativeButton" class="w-full btn btn-special-sky soft-shadow">Narrative</button>
+                    <button id="exportTxtButton" class="w-full btn btn-special-indigo soft-shadow">Struct. Text</button>
+                    <button id="exportCsvButton" class="w-full btn btn-special-teal soft-shadow">CSV</button>
+                    <button id="exportJsonAnalysisButton" class="w-full btn btn-special-purple soft-shadow">Enriched JSON</button>
+                </div>
             </div>
+
 
             <!-- Help & Info -->
             <div class="pt-4 border-t border-slate-200 space-y-3 px-2">
@@ -480,6 +488,45 @@
         };
         function setCopyright() { const currentYear = new Date().getFullYear(); copyrightNoticeDiv.innerHTML = `&copy; ${currentYear} Thorsten Becker, <a href="https://www.thorstenbecker.de" target="_blank" rel="noopener noreferrer" class="btn-link">www.thorstenbecker.de</a>`;}
         
+        // --- NEW HELPER FUNCTIONS FOR EXPORT ---
+        function downloadFile(filename, content, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function normalizeValue(value, min, max, newMin, newMax) {
+            // Clamps the value within the original range before normalizing
+            const clampedValue = Math.max(min, Math.min(value, max));
+            return newMin + (clampedValue - min) * (newMax - newMin) / (max - min);
+        }
+
+        function getToneScore(colorValue) {
+            const mapping = {
+                '#D48C7A': -1.0, // Red
+                '#B0A89E': -0.5, // Gray
+                '#EAD690': 0.25, // Yellow
+                '#8EAFBC': 0.5,  // Blue
+                '#9DBA7B': 0.75, // Green
+                '#A08CAF': 1.0   // Purple
+            };
+            return mapping[colorValue.toUpperCase()] || 0;
+        }
+
+        function getResonanceScore(waveform) {
+            if (!waveform || waveform.type === 'none') return 0;
+            const baseValue = waveform.type === 'sine' ? 0.25 : -0.25;
+            if (waveform.amplitude < 13) return baseValue; // soft
+            if (waveform.amplitude < 22) return baseValue * 2; // medium
+            return baseValue * 3; // loud
+        }
+
         // --- Core Application Logic ---
         function resetSelfCircleToDefaults() {
             const devicePixelRatio = window.devicePixelRatio || 1;
@@ -861,11 +908,13 @@
         
         function getMapBoundingBox() {
             if (!state.selfCircle) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
-            let minX = state.selfCircle.x - state.selfCircle.radius;
-            let minY = state.selfCircle.y - state.selfCircle.radius;
-            let maxX = state.selfCircle.x + state.selfCircle.radius;
-            let maxY = state.selfCircle.y + state.selfCircle.radius;
             
+            // Start with aspect bounds
+            let minX = state.aspects.length > 0 ? state.aspects[0].x : state.selfCircle.x;
+            let minY = state.aspects.length > 0 ? state.aspects[0].y : state.selfCircle.y;
+            let maxX = minX;
+            let maxY = minY;
+
             state.aspects.forEach(a => {
                 minX = Math.min(minX, a.x - a.radius);
                 minY = Math.min(minY, a.y - a.radius);
@@ -873,12 +922,30 @@
                 maxY = Math.max(maxY, a.y + a.radius);
             });
 
+            // Always include the SELF node
+            minX = Math.min(minX, state.selfCircle.x - state.selfCircle.radius);
+            minY = Math.min(minY, state.selfCircle.y - state.selfCircle.radius);
+            maxX = Math.max(maxX, state.selfCircle.x + state.selfCircle.radius);
+            maxY = Math.max(maxY, state.selfCircle.y + state.selfCircle.radius);
+
+            // FIX: Ensure the bounding box includes the outermost concentric ring
+            const maxRingRadius = CONCENTRIC_RING_RADII[CONCENTRIC_RING_RADII.length - 1];
+            const ringMinX = state.selfCircle.x - maxRingRadius;
+            const ringMinY = state.selfCircle.y - maxRingRadius;
+            const ringMaxX = state.selfCircle.x + maxRingRadius;
+            const ringMaxY = state.selfCircle.y + maxRingRadius;
+
+            const finalMinX = Math.min(minX, ringMinX);
+            const finalMinY = Math.min(minY, ringMinY);
+            const finalMaxX = Math.max(maxX, ringMaxX);
+            const finalMaxY = Math.max(maxY, ringMaxY);
+
             const padding = 50;
             return {
-                minX: minX - padding,
-                minY: minY - padding,
-                maxX: maxX + padding,
-                maxY: maxY + padding,
+                minX: finalMinX - padding,
+                minY: finalMinY - padding,
+                maxX: finalMaxX + padding,
+                maxY: finalMaxY + padding,
             };
         }
 
@@ -1095,6 +1162,138 @@
             showMessage('SVG Exported', 'Your map has been prepared for download.');
         });
         
+        // --- NEW EXPORT FUNCTIONS ---
+
+        function exportNarrative() {
+            if (state.aspects.length === 0) {
+                showMessage("No Aspects", "Add some aspects to the map before exporting a narrative.");
+                return;
+            }
+            const narrativeContent = state.aspects
+                .map(aspect => generateNarrativeForAspect(aspect, state.selfCircle))
+                .join('\n\n');
+            
+            downloadFile('fems-narrative.txt', narrativeContent, 'text/plain;charset=utf-8');
+            showMessage('Narrative Exported', 'Your map narrative has been prepared for download.');
+        }
+
+        function exportToTxt() {
+            if (state.aspects.length === 0) {
+                showMessage("No Aspects", "Add some aspects to the map before exporting.");
+                return;
+            }
+            let structuredText = `Fuzzy Emotion Map - Structured Text Summary\nGenerated on: ${new Date().toISOString()}\n\n`;
+            
+            state.aspects.forEach(aspect => {
+                const distance = Math.hypot(aspect.x - state.selfCircle.x, aspect.y - state.selfCircle.y).toFixed(2);
+                structuredText += `--- Aspect: ${aspect.text} ---\n`;
+                structuredText += `Narrative: ${generateNarrativeForAspect(aspect, state.selfCircle)}\n\n`;
+                structuredText += `Data:\n`;
+                structuredText += `  - ID: ${aspect.id}\n`;
+                structuredText += `  - Intensity (Radius): ${aspect.radius}\n`;
+                structuredText += `  - Distance from SELF: ${distance}px\n`;
+                structuredText += `  - Tone: ${Object.values(FEMS_COLORS).find(c => c.value === aspect.color)?.name || 'N/A'} (${aspect.color})\n`;
+                structuredText += `  - Connection: ${aspect.connectionToSelf || 'none'}\n`;
+                structuredText += `  - Waveform: ${aspect.waveform?.type || 'none'}\n`;
+                if (aspect.waveform?.type !== 'none') {
+                    structuredText += `  - Amplitude: ${aspect.waveform.amplitude}\n`;
+                }
+                if (aspect.aura) {
+                    structuredText += `  - Aura: ${aspect.aura.name} (${aspect.aura.symbol})\n`;
+                }
+                structuredText += '---\n\n';
+            });
+
+            downloadFile('fems-structured-summary.txt', structuredText, 'text/plain;charset=utf-8');
+            showMessage('Text Summary Exported', 'Your structured text summary has been prepared for download.');
+        }
+
+        function exportToCsv() {
+             if (state.aspects.length === 0) {
+                showMessage("No Aspects", "Add some aspects to the map before exporting.");
+                return;
+            }
+            const headers = [
+                'aspect_id', 'aspect_text', 'intensity_raw', 'intensity_normalized', 
+                'distance_raw', 'distance_normalized', 'tone_name', 'tone_hex', 'tone_score',
+                'connection_type', 'connection_strength', 'resonance_type', 'resonance_strength',
+                'aura_symbol', 'aura_name', 'weighted_mood_score'
+            ];
+            
+            // FIX: Prepend UTF-8 BOM for Excel compatibility with special characters
+            let csvContent = '\uFEFF' + headers.join(',') + '\n';
+
+            state.aspects.forEach(aspect => {
+                const distanceRaw = Math.hypot(aspect.x - state.selfCircle.x, aspect.y - state.selfCircle.y);
+                const distanceNormalized = normalizeValue(distanceRaw, 0, CONCENTRIC_RING_RADII[2] + 100, 1.0, 0.25); 
+                const intensityRaw = aspect.radius;
+                const intensityNormalized = normalizeValue(intensityRaw, 15, 100, 0.5, 1.0);
+                const tone = Object.values(FEMS_COLORS).find(c => c.value.toUpperCase() === aspect.color.toUpperCase());
+                const toneScore = getToneScore(aspect.color);
+                const connectionStrength = aspect.connectionToSelf === 'solid' ? 1.0 : (aspect.connectionToSelf === 'dashed' ? 0.5 : 0);
+                const resonanceScore = getResonanceScore(aspect.waveform);
+                const weightedMoodScore = (intensityNormalized * distanceNormalized * toneScore) + resonanceScore;
+
+                const row = [
+                    aspect.id,
+                    `"${aspect.text.replace(/"/g, '""')}"`, // Handle quotes in text
+                    intensityRaw,
+                    intensityNormalized.toFixed(4),
+                    distanceRaw.toFixed(2),
+                    Math.max(0, distanceNormalized).toFixed(4), // Clamp at 0
+                    tone?.name.split(',')[0] || 'N/A',
+                    aspect.color,
+                    toneScore,
+                    aspect.connectionToSelf || 'none',
+                    connectionStrength,
+                    aspect.waveform?.type || 'none',
+                    resonanceScore,
+                    aspect.aura?.symbol || '',
+                    aspect.aura?.name || '',
+                    weightedMoodScore.toFixed(4)
+                ];
+                csvContent += row.join(',') + '\n';
+            });
+            
+            downloadFile('fems-data-export.csv', csvContent, 'text/csv;charset=utf-8');
+            showMessage('CSV Exported', 'Your data has been prepared for download.');
+        }
+
+        function exportEnrichedJson() {
+            const mapData = JSON.parse(JSON.stringify({
+                selfCircle: state.selfCircle, 
+                aspects: state.aspects, 
+                nextAspectId: state.nextAspectId, 
+                viewOptions:{showRings: state.view.showRings, showGrid: state.view.showGrid}, 
+                transform:{panX: state.view.panX, panY: state.view.panY, scale: state.view.scale}
+            }));
+            
+            mapData.analysisData = state.aspects.map(aspect => {
+                const distanceRaw = Math.hypot(aspect.x - state.selfCircle.x, aspect.y - state.selfCircle.y);
+                const distanceNormalized = normalizeValue(distanceRaw, 0, CONCENTRIC_RING_RADII[2] + 100, 1.0, 0.25);
+                const intensityNormalized = normalizeValue(aspect.radius, 15, 100, 0.5, 1.0);
+                const toneScore = getToneScore(aspect.color);
+                const resonanceScore = getResonanceScore(aspect.waveform);
+                // FIX: Calculate weightedMoodScore within this function's scope
+                const weightedMoodScore = (intensityNormalized * distanceNormalized * toneScore) + resonanceScore;
+
+
+                return {
+                    aspect_id: aspect.id,
+                    intensity_normalized: intensityNormalized.toFixed(4),
+                    distance_normalized: Math.max(0, distanceNormalized).toFixed(4),
+                    tone_score: toneScore,
+                    resonance_score: resonanceScore,
+                    weighted_mood_score: weightedMoodScore.toFixed(4)
+                };
+            });
+
+            const jsonData = JSON.stringify(mapData, null, 2);
+            downloadFile('fems-map-enriched.json', jsonData, 'application/json');
+            showMessage('Enriched JSON Exported', 'Your enriched map data has been prepared for download.');
+        }
+
+
         // --- Event Listeners ---
         canvas.addEventListener('mousedown', (e) => { e.preventDefault(); handleMouseDown(e); });
         canvas.addEventListener('mousemove', (e) => { e.preventDefault(); handleMouseMove(e); });
@@ -1168,6 +1367,19 @@
         function initializeApp() {
             setCopyright();
             populateVocabulary();
+            
+            // --- NEW: EVENT LISTENER REGISTRATIONS FOR NEW BUTTONS ---
+            const exportNarrativeButton = document.getElementById('exportNarrativeButton');
+            const exportCsvButton = document.getElementById('exportCsvButton');
+            const exportTxtButton = document.getElementById('exportTxtButton');
+            const exportJsonAnalysisButton = document.getElementById('exportJsonAnalysisButton');
+
+            exportNarrativeButton.addEventListener('click', exportNarrative);
+            exportCsvButton.addEventListener('click', exportToCsv);
+            exportTxtButton.addEventListener('click', exportToTxt);
+            exportJsonAnalysisButton.addEventListener('click', exportEnrichedJson);
+            // --- END NEW ---
+
             if(document.getElementById('help-modal-copyright-year')) {
                 document.getElementById('help-modal-copyright-year').textContent = new Date().getFullYear();
             }
