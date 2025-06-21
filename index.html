@@ -199,7 +199,6 @@
 </head>
 <body class="flex flex-col md:flex-row h-screen overflow-hidden">
 
-    <!-- Control Panel -->
     <div class="control-panel h-[40vh] md:h-auto w-full md:w-80 lg:w-96 order-2 md:order-1">
         <div class="control-panel-content p-4 space-y-4 overflow-x-hidden">
             
@@ -208,7 +207,6 @@
                 <p class="text-xs text-gray-500">Aspects: <span id="aspectCountDisplay">0</span></p>
             </div>
 
-            <!-- View Options -->
             <div class="pt-4 border-t border-slate-200 space-y-3 px-2">
                 <h2 class="text-lg font-medium">View Options</h2>
                 <div class="flex space-x-2">
@@ -223,7 +221,6 @@
                  </div>
             </div>
 
-            <!-- Aspect Controls -->
             <div id="aspectControls" class="pt-4 border-t border-slate-200 space-y-2 px-2">
                 <h2 class="text-lg font-medium">Aspect Controls</h2>
                 <button id="addAspectButton" class="w-full btn btn-primary soft-shadow">Add Aspect</button>
@@ -231,7 +228,6 @@
                 <button id="clearMapButton" class="w-full btn btn-danger soft-shadow">Clear Entire Map</button>
             </div>
             
-            <!-- Vocabulary -->
             <div class="pt-4 border-t border-slate-200 space-y-3 px-2">
                 <button id="toggleVocabularyButton" class="w-full btn btn-special-indigo soft-shadow">Show Starter Vocabulary</button>
                 <div id="starterVocabularyContainer" class="hidden space-y-4 pt-3">
@@ -262,7 +258,6 @@
                 </div>
             </div>
 
-            <!-- Selected Aspect Controls -->
             <div id="selectedAspectControls" class="space-y-3 hidden pt-4 border-t border-slate-200 p-3 bg-white/40 rounded-xl">
                 <h2 class="text-lg font-medium">Edit Aspect: <span id="selectedAspectName" class="font-normal"></span></h2>
                 <div><label for="aspectText" class="block text-sm font-medium">Text Label:</label><input type="text" id="aspectText" class="mt-1 block w-full px-3 py-2 bg-white border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-400 focus:border-purple-400 sm:text-sm"></div>
@@ -278,13 +273,11 @@
                 <button id="deleteAspectButton" class="w-full btn btn-danger mt-2">Delete Aspect</button>
             </div>
 
-            <!-- SELF Controls -->
             <div id="selfControls" class="space-y-3 hidden pt-4 border-t border-slate-200 p-3 bg-white/40 rounded-xl">
                 <h2 class="text-lg font-medium">Edit SELF Node</h2>
                 <div><label class="block text-sm font-medium">Color (Emotional Tone):</label><div id="selfColorPalette" class="mt-1 grid grid-cols-6 gap-2"></div></div>
             </div>
 
-            <!-- Data & Narrative -->
             <div class="pt-4 border-t border-slate-200 space-y-3 px-2">
                 <h2 class="text-lg font-medium">Save, Load & Export</h2>
                 <button id="generateNarrativeButton" class="w-full btn btn-special-sky soft-shadow">Preview Narrative</button>
@@ -306,14 +299,12 @@
             </div>
 
 
-            <!-- Help & Info -->
             <div class="pt-4 border-t border-slate-200 space-y-3 px-2">
                 <h2 class="text-lg font-medium">Help & Information</h2>
                 <button id="quickHelpButton" class="w-full btn btn-special-fuchsia soft-shadow">Quick Help</button>
                 <a href="https://drive.google.com/file/d/1IPkqdP3zENqIkOgxRMJAETQX-RhgMlmM/view?usp=sharing" target="_blank" rel="noopener noreferrer" class="block w-full text-center btn btn-special-indigo soft-shadow">Learn More about FEMS</a>
             </div>
 
-            <!-- Licensing -->
             <div class="pt-4 border-t border-slate-200 space-y-3 px-2">
                 <h2 class="text-lg font-medium">Usage and Licensing</h2>
                 <div class="p-3 bg-white/40 rounded-xl text-sm">
@@ -346,7 +337,6 @@
         <div id="copyrightNotice" class="p-3 border-t border-slate-200 text-center text-xs text-gray-500 flex-shrink-0"></div>
     </div>
 
-    <!-- Main Canvas Area -->
     <div class="flex-1 p-4 order-1 md:order-2 flex justify-center items-center min-h-0">
         <div class="canvas-container soft-shadow-xl">
              <canvas id="backgroundCanvas"></canvas>
@@ -354,7 +344,6 @@
         </div>
     </div>
     
-    <!-- Modals -->
     <div id="textInputModal" class="modal"><div class="modal-content"><span class="close-button" id="closeModalButton">&times;</span><h3 id="modalTitle" class="text-xl font-semibold mb-4">Enter Text</h3><input type="text" id="modalTextInput" class="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-400 focus:border-purple-400"><button id="modalSaveButton" class="mt-4 w-full btn btn-success">Save</button></div></div>
     <div id="messageModal" class="modal"><div class="modal-content"><span class="close-button" id="closeMessageModalButton">&times;</span><h3 id="messageModalTitle" class="text-xl font-semibold mb-2">Notification</h3><p id="messageModalText" class="text-sm"></p><button id="messageModalOkButton" class="mt-4 w-full btn btn-primary">OK</button></div></div>
     <div id="narrativeModal" class="modal"><div class="modal-content"><span class="close-button" id="closeNarrativeModalButton">&times;</span><h3 id="narrativeModalTitle" class="text-xl font-semibold mb-4">Generated Narrative</h3><textarea id="narrativeModalTextarea" readonly class="w-full h-64 p-2 border border-slate-300 rounded-md bg-white"></textarea><div class="flex justify-end space-x-2 mt-4"><button id="narrativeModalCopyButton" class="btn btn-special-indigo">Copy to Clipboard</button><button id="narrativeModalCloseButton" class="btn btn-secondary">Close</button></div></div></div>
@@ -800,7 +789,6 @@
                 } else { // An aspect is selected
                     selfControls.classList.add('hidden');
                     
-                    const wasHidden = selectedAspectControls.classList.contains('hidden');
                     selectedAspectControls.classList.remove('hidden');
 
                     selectedAspectName.textContent = selectedCircle.text.substring(0,20) + (selectedCircle.text.length > 20 ? '...':'');
@@ -816,18 +804,6 @@
                     waveAmplitudeValue.textContent = wf.amplitude;
                     waveAmplitude.disabled = wf.type === 'none';
                     document.getElementById('connectionControls').classList.remove('hidden');
-                    
-                    if (wasHidden) { // Only scroll if the panel was just revealed
-                        setTimeout(() => {
-                            const controlPanelContent = document.querySelector('.control-panel-content');
-                            const targetScrollTop = selectedAspectControls.offsetTop - 20;
-                             // Scroll to the top of the controls, with a little padding
-                            controlPanelContent.scrollTo({ 
-                                top: Math.max(0, targetScrollTop), // Ensure scroll position isn't negative
-                                behavior: 'smooth' 
-                            });
-                        }, 50); // A small delay ensures the element is rendered and has a position
-                    }
                 }
             } else {
                 selectedAspectControls.classList.add('hidden');
@@ -877,16 +853,6 @@
                 state.selectedCircleId = null;
                 updateControls();
                 draw();
-
-                // After deletion, focus back on the 'Add Aspect' area
-                const controlPanelContent = document.querySelector('.control-panel-content');
-                addAspectButton.focus({ preventScroll: true }); // Focus without the browser's default scroll
-                if (controlPanelContent && aspectControls) {
-                    controlPanelContent.scrollTo({
-                        top: aspectControls.offsetTop - 20, // scroll to the container of the button
-                        behavior: 'smooth'
-                    });
-                }
             }
         });
         undeleteAspectButton.addEventListener('click', () => { if (state.lastDeletedAspect) { state.aspects.push(state.lastDeletedAspect); state.selectedCircleId = state.lastDeletedAspect.id; state.lastDeletedAspect = null; updateControls(); draw();}});
