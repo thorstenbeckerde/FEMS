@@ -2,7 +2,7 @@
 **Fuzzy Emotion Mapping System (FEMS)** is a visual tool for exploring your emotional landscape.
 
 **The Purpose of FEMS:**
-FEMS is a visual and intuitive way to make emotional clarity visible. Developed as part of the Clarity Navigation framework, it helps you gently explore your internal landscape by mapping how emotions resonate, relate, and move in relation to your self. The term "fuzzy" reflects the intuitive, non-binary nature of emotion—they blend, pulse, and shift without hard edges. This tool is not for diagnosis; it's an invitation to reflect, externalize, and better understand what already lives within you. It’s not about controlling your emotions, but about making contact with them.
+FEMS is a visual and intuitive way to make emotional clarity visible. Developed as part of the Attuned Perception Framework, it helps you gently explore your internal landscape by mapping how emotions resonate, relate, and move in relation to your self. The term "fuzzy" reflects the intuitive, non-binary nature of emotion—they blend, pulse, and shift without hard edges. This tool is not for diagnosis; it's an invitation to reflect, externalize, and better understand what already lives within you. It’s not about controlling your emotions, but about making contact with them.
 
 **Core Concepts:**
 * **SELF Node:** The central circle representing your current emotional state.
